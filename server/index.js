@@ -104,6 +104,11 @@ io.on("connection", (socket) => {
   socket.on("winner", (data) => {
     updatePot(data);
   });
+  socket.on("call", (data) => {
+    data
+      ? supabase.from("lobby-data").select({ call }).eq("name", data.lobbyName)
+      : null;
+  });
   socket.on("disconnect", () => {});
 });
 

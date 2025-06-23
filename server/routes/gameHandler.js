@@ -88,7 +88,7 @@ router.post("/", async (req, res) => {
           currentTurn,
         },
       ],
-      { onConflict: "name" }
+      { onConflict: "name" },
     )
     .select();
 
@@ -173,7 +173,7 @@ router.put("/raise", async (req, res) => {
   const players = data.players;
 
   const updatedPlayers = players.map((player) =>
-    player.id === id ? { ...player, buy_in_amount } : player
+    player.id === id ? { ...player, buy_in_amount } : player,
   );
 
   const { error: updateError } = await supabase
@@ -188,7 +188,7 @@ router.put("/raise", async (req, res) => {
 
   const { data: setPot, err } = await supabase
     .from("lobby-data")
-    .update({ pot })
+    .update({ pot, call: buy_in_amount })
     .eq("name", lobbyName)
     .select("*");
 });
@@ -221,7 +221,7 @@ supabase
     (payload) => {
       console.log(payload.new);
       io.emit("game-data", payload.new);
-    }
+    },
   )
   .subscribe();
 

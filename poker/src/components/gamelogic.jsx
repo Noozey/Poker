@@ -24,6 +24,7 @@ export function GamePlay({ lobbyData, socket }) {
   const [show, setShow] = useState(false);
   const [currentTurn, setCurrentTurn] = useState(1);
   const [raise, setRaise] = useState(0);
+  const [call, setCall] = useState(0);
 
   useEffect(() => {
     const data = async () => {
@@ -74,6 +75,7 @@ export function GamePlay({ lobbyData, socket }) {
       setDealer(data.dealer);
       setShow(data.show);
       setCurrentTurn(data.currentTurn);
+      setCall(data.call);
     };
 
     const onGameData = (data) => {
@@ -152,7 +154,34 @@ export function GamePlay({ lobbyData, socket }) {
     }
   };
 
-  const handleCall = () => {};
+  const handleCall = async () => {
+    if (call === 0) {
+      toast("You can raise or check");
+      return;
+    }
+
+    handleCheck("call");
+    const updatedPlayerCard = playerCard.map((player) =>
+      player.id === session.user.id
+        ? { ...player, buy_in_amount: player.buy_in_amount - call }
+        : player,
+    );
+
+    const updatedPlayer = updatedPlayerCard.find(
+      (p) => p.id === session.user.id,
+    );
+
+    if (updatedPlayer) {
+      await api.put("game/raise", {
+        lobbyName,
+        id: updatedPlayer.id,
+        buy_in_amount: updatedPlayer.buy_in_amount,
+        pot: pot + call,
+      });
+
+      socket.emit("call", { lobbyName });
+    }
+  };
 
   const handleRaise = async () => {
     if (raise === 0) {
@@ -163,11 +192,11 @@ export function GamePlay({ lobbyData, socket }) {
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - raise }
-        : player
+        : player,
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id
+      (p) => p.id === session.user.id,
     );
 
     if (updatedPlayer) {
@@ -198,14 +227,14 @@ export function GamePlay({ lobbyData, socket }) {
                   {card.suit.symbol}
                 </div>
               </div>
-            ) : null
+            ) : null,
           )}
         </div>
       </div>
 
       {/* Player Hands */}
       {playerCard.map((player, index) =>
-        RenderPlayerHand(index, playerCard, show)
+        RenderPlayerHand(index, playerCard, show),
       )}
 
       {playerCard[currentTurn - 1].id === session.user.id ? (
