@@ -122,6 +122,26 @@ export function GamePlay({ lobbyData, socket }) {
     return <div>Loading</div>;
   }
 
+  const updateCheck = async (data) => {
+    let player = playerCard.find((p) => p.id === session.user.id);
+    if (!player) return;
+
+    try {
+      const response = await api.post(`/game/check/${player.player}`, {
+        lobbyName,
+      });
+    } catch (error) {
+      console.error("Check failed.", error);
+    }
+    socket.emit("gamedetails", {
+      name: session.user.user_metadata.name,
+      state: data,
+      currentTurn,
+      numPlayer: lobbyData.players.length,
+      lobbyName,
+    });
+  };
+
   const handleFold = async () => {
     socket.emit("gamedetails", {
       name: session.user.user_metadata.name,
@@ -132,26 +152,12 @@ export function GamePlay({ lobbyData, socket }) {
     });
   };
 
-  const handleCheck = async (data) => {
-    socket.emit("gamedetails", {
-      name: session.user.user_metadata.name,
-      state: data,
-      currentTurn,
-      numPlayer: lobbyData.players.length,
-      lobbyName,
-    });
-
-    let player = playerCard.find((p) => p.id === session.user.id);
-    if (!player) return;
-
-    try {
-      const response = await api.post(`/game/check/${player.player}`, {
-        lobbyName,
-      });
-      console.log("Checked!", response.data);
-    } catch (error) {
-      console.error("Check failed.", error);
+  const handleCheck = async () => {
+    if (call !== 0) {
+      toast("You can't check as opponent has rasied");
+      return;
     }
+    updateCheck("check");
   };
 
   const handleCall = async () => {
@@ -160,16 +166,18 @@ export function GamePlay({ lobbyData, socket }) {
       return;
     }
 
-    handleCheck("call");
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - call }
-        : player,
+        : player
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id,
+      (p) => p.id === session.user.id
     );
+
+    socket.emit("call", { lobbyName });
+    updateCheck("call");
 
     if (updatedPlayer) {
       await api.put("game/raise", {
@@ -178,8 +186,6 @@ export function GamePlay({ lobbyData, socket }) {
         buy_in_amount: updatedPlayer.buy_in_amount,
         pot: pot + call,
       });
-
-      socket.emit("call", { lobbyName });
     }
   };
 
@@ -188,23 +194,25 @@ export function GamePlay({ lobbyData, socket }) {
       toast("You can't raise with 0 vlaue in the pot");
       return;
     }
-    handleCheck("raised");
+    updateCheck("raised");
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - raise }
-        : player,
+        : player
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id,
+      (p) => p.id === session.user.id
     );
 
     if (updatedPlayer) {
+      console.log();
       await api.put("game/raise", {
         lobbyName,
         id: updatedPlayer.id,
         buy_in_amount: updatedPlayer.buy_in_amount,
         pot: pot + raise,
+        raise,
       });
     }
   };
@@ -227,14 +235,14 @@ export function GamePlay({ lobbyData, socket }) {
                   {card.suit.symbol}
                 </div>
               </div>
-            ) : null,
+            ) : null
           )}
         </div>
       </div>
 
       {/* Player Hands */}
       {playerCard.map((player, index) =>
-        RenderPlayerHand(index, playerCard, show),
+        RenderPlayerHand(index, playerCard, show)
       )}
 
       {playerCard[currentTurn - 1].id === session.user.id ? (

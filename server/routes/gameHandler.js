@@ -72,9 +72,6 @@ router.post("/", async (req, res) => {
   const changeDealer = dealer >= playerNum ? 1 : dealer + 1;
   const currentTurn = changeDealer >= playerNum ? 1 : changeDealer + 1;
 
-  console.log("changeDealer:", changeDealer);
-  console.log("playerNum:", playerNum);
-
   const { data: upsertData, error: upsertError } = await supabase
     .from("lobby-data")
     .upsert(
@@ -88,7 +85,7 @@ router.post("/", async (req, res) => {
           currentTurn,
         },
       ],
-      { onConflict: "name" },
+      { onConflict: "name" }
     )
     .select();
 
@@ -152,7 +149,7 @@ router.post("/check/:player", async (req, res) => {
 });
 
 router.put("/raise", async (req, res) => {
-  const { lobbyName, id, buy_in_amount, pot } = req.body;
+  const { lobbyName, id, buy_in_amount, pot, raise } = req.body;
 
   const { data, error } = await supabase
     .from("lobbies")
@@ -173,7 +170,7 @@ router.put("/raise", async (req, res) => {
   const players = data.players;
 
   const updatedPlayers = players.map((player) =>
-    player.id === id ? { ...player, buy_in_amount } : player,
+    player.id === id ? { ...player, buy_in_amount } : player
   );
 
   const { error: updateError } = await supabase
@@ -188,14 +185,13 @@ router.put("/raise", async (req, res) => {
 
   const { data: setPot, err } = await supabase
     .from("lobby-data")
-    .update({ pot, call: buy_in_amount })
+    .update({ pot, call: raise })
     .eq("name", lobbyName)
     .select("*");
 });
 
 router.get("/data/:lobbyName", async (req, res) => {
   const { lobbyName } = req.params;
-  console.log(lobbyName);
 
   try {
     const { data, error } = await supabase
@@ -219,9 +215,8 @@ supabase
     "postgres_changes",
     { event: "*", schema: "public", table: "lobby-data" },
     (payload) => {
-      console.log(payload.new);
       io.emit("game-data", payload.new);
-    },
+    }
   )
   .subscribe();
 

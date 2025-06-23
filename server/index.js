@@ -70,7 +70,6 @@ const updatePot = async (data) => {
   if (updateError) {
     console.error("Error updating pot:", updateError.message);
   } else {
-    console.log("Pot updated successfully for winner.");
   }
 
   if (data.pot !== 0) {
@@ -93,6 +92,21 @@ const changeTurn = async (data) => {
     .eq("name", data.lobbyName);
 };
 
+const updateCall = async (data) => {
+  if (!data) return;
+
+  const { error } = await supabase
+    .from("lobby-data")
+    .update({ call: 0 })
+    .eq("name", data.lobbyName);
+
+  if (error) {
+    console.error("Error updating call:", error);
+  } else {
+    console.log("Call updated to 0 successfully");
+  }
+};
+
 io.on("connection", (socket) => {
   socket.on("gamedetails", (msg) => {
     socket.broadcast.emit("gamedetails", msg);
@@ -105,9 +119,8 @@ io.on("connection", (socket) => {
     updatePot(data);
   });
   socket.on("call", (data) => {
-    data
-      ? supabase.from("lobby-data").select({ call }).eq("name", data.lobbyName)
-      : null;
+    updateCall(data);
+    console.log("hello", data);
   });
   socket.on("disconnect", () => {});
 });
