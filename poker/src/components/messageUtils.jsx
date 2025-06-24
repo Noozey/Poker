@@ -29,7 +29,7 @@ export const Message = ({ socket }) => {
     return () => {
       socket.off("msg", msg);
     };
-  }, [socket]);
+  }, [socket, lobbyName]);
 
   const handleMessage = () => {
     if (input.trim()) {
@@ -71,7 +71,11 @@ export const Message = ({ socket }) => {
           placeholder="Message..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") handleMessage();
+          }}
         />
+
         <Button
           variant="outline"
           onClick={handleMessage}

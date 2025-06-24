@@ -130,6 +130,7 @@ export function GamePlay({ lobbyData, socket }) {
     try {
       await api.post(`/game/check/${player.player}`, {
         lobbyName,
+        state: data,
       });
     } catch (error) {
       console.error("Check failed.", error);

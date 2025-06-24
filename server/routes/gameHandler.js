@@ -102,7 +102,7 @@ router.post("/", async (req, res) => {
 
 router.post("/check/:player", async (req, res) => {
   const { player } = req.params;
-  const { lobbyName } = req.body;
+  const { lobbyName, state } = req.body;
 
   let index = parseInt(player) - 1;
 
@@ -119,6 +119,10 @@ router.post("/check/:player", async (req, res) => {
   let check = data.check;
 
   check.players[index] = true;
+  if (state === "raised") {
+    check.players = check.players.map(() => false);
+    check.players[index] = true;
+  }
 
   if (check.players.every(Boolean)) {
     if (!check.community[0] && !check.community[1] && !check.community[2]) {
