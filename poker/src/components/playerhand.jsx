@@ -42,7 +42,7 @@ export const RenderPlayerHand = (playerIndex, playerCard, show) => {
 
       {/* cards here */}
       {player.cards.map((card, idx) =>
-        renderCard(card, idx, idx % 2 === 0 ? 9 : 0)
+        renderCard(card, idx, idx % 2 === 0 ? 9 : 0),
       )}
     </div>
   ) : (
@@ -51,7 +51,7 @@ export const RenderPlayerHand = (playerIndex, playerCard, show) => {
       className={cn(
         "w-[120px] h-auto col-span-2 justify-self-center relative rounded-4xl  max-2xl:h-[80%] max-2xl:w-[90px]",
         pos.rowStart,
-        pos.colStart
+        pos.colStart,
       )}
     >
       {player.player === player.dealer ? (

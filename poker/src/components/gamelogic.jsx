@@ -285,7 +285,7 @@ export function GamePlay({ lobbyData, socket }) {
       <div className="p-4 rounded-lg h-fit w-fit bg-gray-700 shadow-2xl flex flex-col gap-4 col-start-11 col-span-2 justify-self-center">
         <div>
           <h3 className="text-gray-100 font-semibold mb-4">Players</h3>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-2 overflow-scroll h-[200px]">
             {playerCard.map((player, index) => (
               <li key={index} className="bg-gray-600 p-2 rounded-md">
                 {session.user.id === player.id ? (

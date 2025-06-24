@@ -11,12 +11,12 @@ function PokerChip({
     color === "red"
       ? "bg-gradient-to-br from-red-700 to-red-500"
       : color === "blue"
-      ? "bg-gradient-to-br from-blue-900 to-blue-500"
-      : color === "black"
-      ? "bg-gradient-to-br from-gray-900 to-gray-700"
-      : color === "green"
-      ? "bg-gradient-to-br from-green-700 to-green-500"
-      : "bg-gradient-to-br from-gray-700 to-gray-500";
+        ? "bg-gradient-to-br from-blue-900 to-blue-500"
+        : color === "black"
+          ? "bg-gradient-to-br from-gray-900 to-gray-700"
+          : color === "green"
+            ? "bg-gradient-to-br from-green-700 to-green-500"
+            : "bg-gradient-to-br from-gray-700 to-gray-500";
 
   return (
     <div
@@ -47,13 +47,13 @@ function PokerChip({
 function DropZone({ onDrop, droppedChips, isActive, setRaise }) {
   const totalValue = droppedChips.reduce(
     (sum, chip) => sum + parseInt(chip.value),
-    0
+    0,
   );
   setRaise(totalValue);
 
   return (
     <div
-      className={`absolute bottom-0 left-0 right-0 rounded-t-2xl border-4 border-dashed transition-all duration-300 z-30 flex items-center justify-center ${
+      className={`absolute bottom-0 left-0 right-0 rounded-t-2xl border-4 border-dashed border-b-0 transition-all duration-300 z-30 flex items-center justify-center ${
         isActive
           ? "border-green-400 bg-green-900/20 backdrop-blur-sm"
           : "border-amber-600/50 bg-green-900/10 hover:border-amber-600/70"
