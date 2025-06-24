@@ -20,6 +20,7 @@ export const Message = ({ socket }) => {
     socket.on("msg", (data) => {
       if (data.lobbyName === lobbyName) {
         msg(data);
+        console.log(data);
         return;
       }
     });
@@ -49,7 +50,15 @@ export const Message = ({ socket }) => {
       <ScrollArea className="h-[100px]">
         {message.map((item, index) => (
           <div key={index}>
-            <strong>{item.name}:</strong> {item.msg}
+            {item.msg ? (
+              <div>
+                <strong>{item.name}:</strong> item.msg
+              </div>
+            ) : (
+              <span className="text-yellow-400 font-bold">
+                ({item.name}: {item.state})
+              </span>
+            )}
           </div>
         ))}
       </ScrollArea>

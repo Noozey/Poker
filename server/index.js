@@ -110,6 +110,7 @@ const updateCall = async (data) => {
 io.on("connection", (socket) => {
   socket.on("gamedetails", (msg) => {
     socket.broadcast.emit("gamedetails", msg);
+    socket.broadcast.emit("msg", msg);
     changeTurn(msg);
   });
   socket.on("msg", (msg) => {
