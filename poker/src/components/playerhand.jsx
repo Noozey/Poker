@@ -14,7 +14,7 @@ const renderCard = (card, index, offset = 0) => (
   >
     {card.rank}
     {card.suit.symbol}
-    <div className="h-full w-full flex items-center justify-center text-6xl">
+    <div className="h-full w-full flex items-center justify-center text-6xl max-md:text-2xl">
       {card.suit.symbol}
     </div>
   </div>
@@ -30,7 +30,7 @@ export const RenderPlayerHand = (playerIndex, playerCard, show) => {
   return session.user.id === player.id || show ? (
     <div
       key={playerIndex}
-      className={`w-[100px] h-full ${pos.rowStart} ${pos.colStart} col-span-2 justify-self-center relative max-2xl:h-[80%] max-2xl:w-[75px]`}
+      className={`w-[100px] h-full ${pos.rowStart} ${pos.colStart} col-span-2 justify-self-center relative max-2xl:h-[80%] max-2xl:w-[75px] max-md:h-[50%] max-md:w-[50px]`}
     >
       {player.player === player.dealer ? (
         <>
@@ -42,16 +42,16 @@ export const RenderPlayerHand = (playerIndex, playerCard, show) => {
 
       {/* cards here */}
       {player.cards.map((card, idx) =>
-        renderCard(card, idx, idx % 2 === 0 ? 9 : 0),
+        renderCard(card, idx, idx % 2 === 0 ? 9 : 0)
       )}
     </div>
   ) : (
     <div
       key={playerIndex}
       className={cn(
-        "w-[120px] h-auto col-span-2 justify-self-center relative rounded-4xl  max-2xl:h-[80%] max-2xl:w-[90px]",
+        "w-[120px] h-auto col-span-2 justify-self-center relative rounded-4xl  max-2xl:h-[80%] max-2xl:w-[90px] max-md:h-[60%] max-md:w-[70px]",
         pos.rowStart,
-        pos.colStart,
+        pos.colStart
       )}
     >
       {player.player === player.dealer ? (
