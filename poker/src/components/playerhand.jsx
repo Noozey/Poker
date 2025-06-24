@@ -30,7 +30,7 @@ export const RenderPlayerHand = (playerIndex, playerCard, show) => {
   return session.user.id === player.id || show ? (
     <div
       key={playerIndex}
-      className={`w-[100px] h-full ${pos.rowStart} ${pos.colStart} col-span-2 justify-self-center relative`}
+      className={`w-[100px] h-full ${pos.rowStart} ${pos.colStart} col-span-2 justify-self-center relative max-2xl:h-[80%] max-2xl:w-[75px]`}
     >
       {player.player === player.dealer ? (
         <>
@@ -49,7 +49,7 @@ export const RenderPlayerHand = (playerIndex, playerCard, show) => {
     <div
       key={playerIndex}
       className={cn(
-        "w-[120px] h-auto col-span-2 justify-self-center relative rounded-4xl",
+        "w-[120px] h-auto col-span-2 justify-self-center relative rounded-4xl  max-2xl:h-[80%] max-2xl:w-[90px]",
         pos.rowStart,
         pos.colStart
       )}

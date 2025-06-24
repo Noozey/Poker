@@ -167,7 +167,7 @@ const Chips = ({ setRaise }) => {
   return (
     <>
       {/* Chip Selection Buttons - Fits in your grid area */}
-      <div className="flex justify-center gap-2 h-fit">
+      <div className="flex max-2xl:flex-col justify-center gap-2 h-fit">
         {chipTypes.map((chipType, index) => (
           <PokerChip
             key={index}

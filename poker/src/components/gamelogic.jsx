@@ -221,7 +221,7 @@ export function GamePlay({ lobbyData, socket }) {
     <div className="bg-gray-800 w-full h-full mb-auto z-0 grid grid-cols-12 grid-rows-5 justify-center p-5 gap-5">
       <Message socket={socket} />
       {/* Table Cards */}
-      <div className="h-full row-start-2 row-end-5 col-start-4 col-end-10 flex flex-col gap-6 justify-center items-center bg-green-900 rounded-full border-[20px] border-amber-950 shadow-[inset_4px_4px_10px_rgba(0,0,0,0.5),inset_-4px_-4px_10px_rgba(0,0,0,0.5),0_0_20px_rgba(0,0,0,0.8)]">
+      <div className="h-full row-start-2 row-end-5 col-start-4 col-end-10 max-xl:col-start-5 max-xl:col-end-9 flex flex-col gap-6 justify-center items-center bg-green-900 max-xl:rounded-4xl rounded-full border-[20px] border-amber-950 shadow-[inset_4px_4px_10px_rgba(0,0,0,0.5),inset_-4px_-4px_10px_rgba(0,0,0,0.5),0_0_20px_rgba(0,0,0,0.8)]">
         <div className="w-[80%] h-[150px] grid grid-cols-5">
           {tableCard.map((card, index) =>
             check[index] ? (
@@ -246,10 +246,10 @@ export function GamePlay({ lobbyData, socket }) {
       )}
 
       {playerCard[currentTurn - 1].id === session.user.id ? (
-        <div className="h-full w-full row-start-5 col-start-6 col-span-2 justify-self-center relative z-50 grid grid-rows-2 gap-6 place-items-center">
+        <div className="  row-start-5 col-start-6 col-span-2 justify-self-center relative z-50 grid grid-rows-2 max-2xl:grid-cols-2 gap-6 place-items-center max-2xl:col-start-11 max-2xl:row-start-4">
           {/* Button row */}
           {check.every((value) => value === true) ? null : (
-            <div className="flex  justify-center gap-3 w-full">
+            <div className="flex justify-center gap-3 max-2xl:flex-col max-2xl:col-start-1">
               <Button
                 onClick={handleCall}
                 className="bg-green-900 text-gray-50 font-semibold py-2 px-6 rounded-md shadow-md transition-transform hover:scale-105 hover:bg-green-800 hover:shadow-lg border border-gray-700"
@@ -276,11 +276,13 @@ export function GamePlay({ lobbyData, socket }) {
               </Button>
             </div>
           )}
-          <Chips setRaise={setRaise} />
+          <div className="max-2xl:col-start-2">
+            <Chips setRaise={setRaise} />
+          </div>
         </div>
       ) : null}
 
-      <div className="col-start-12 p-4 rounded-lg h-fit bg-gray-700 shadow-2xl flex flex-col gap-4">
+      <div className="p-4 rounded-lg h-fit w-fit bg-gray-700 shadow-2xl flex flex-col gap-4 col-start-11 col-span-2 justify-self-center">
         <div>
           <h3 className="text-gray-100 font-semibold mb-4">Players</h3>
           <ul className="flex flex-col gap-2">
