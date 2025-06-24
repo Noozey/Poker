@@ -231,7 +231,7 @@ const Chips = ({ setRaise }) => {
       <div className="fixed inset-0 pointer-events-none z-30">
         <div className="relative w-full h-full">
           {/* This targets the poker table area - adjust positioning as needed */}
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[25%] h-[450px]">
+          <div className="absolute top-1/2 left-1/2 max-md:left-1/3 transform -translate-x-1/2 -translate-y-1/2 w-[25%] h-[500px] max-xl:h-[350px]">
             <DropZone
               droppedChips={droppedChips}
               isActive={dropZoneActive}
