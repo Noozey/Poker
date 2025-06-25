@@ -19,7 +19,14 @@ export function GamePlay({ lobbyData, socket }) {
     { player: 2, id: lobbyData.players[1]?.id || null, cards: [] },
   ]);
   const [tableCard, setTableCard] = useState([]);
-  const [check, setCheck] = useState([false, false, false, false, false]);
+  const [check, setCheck] = useState([
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ]);
   const [pot, setPot] = useState(0);
   const [dealer, setDealer] = useState(null);
   const [show, setShow] = useState(false);
@@ -171,11 +178,11 @@ export function GamePlay({ lobbyData, socket }) {
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - call }
-        : player
+        : player,
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id
+      (p) => p.id === session.user.id,
     );
 
     socket.emit("call", { lobbyName });
@@ -200,11 +207,11 @@ export function GamePlay({ lobbyData, socket }) {
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - raise }
-        : player
+        : player,
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id
+      (p) => p.id === session.user.id,
     );
 
     if (updatedPlayer) {
@@ -237,14 +244,14 @@ export function GamePlay({ lobbyData, socket }) {
                   {card.suit.symbol}
                 </div>
               </div>
-            ) : null
+            ) : null,
           )}
         </div>
       </div>
 
       {/* Player Hands */}
       {playerCard.map((player, index) =>
-        RenderPlayerHand(index, playerCard, show)
+        RenderPlayerHand(index, playerCard, show),
       )}
 
       {playerCard[currentTurn - 1].id === session.user.id ? (
@@ -285,8 +292,8 @@ export function GamePlay({ lobbyData, socket }) {
       ) : null}
 
       <div
-        className="p-2 rounded-lg h-fit w-fit bg-gray-700 
-        shadow-2xl flex flex-col max-[767px]:flex-row gap-4 max-[767px]:gap-2 col-start-11 2xl:col-start-12 col-span-2 justify-self-center 
+        className="p-2 rounded-lg h-fit w-fit bg-gray-700
+        shadow-2xl flex flex-col max-[767px]:flex-row gap-4 max-[767px]:gap-2 col-start-11 2xl:col-start-12 col-span-2 justify-self-center
 max-w-[300px] sm:max-w-[200px] text-sm sm:p-2 max-md:col-start-10 max-sm:col-start-9"
       >
         <div>

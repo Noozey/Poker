@@ -36,7 +36,7 @@ router.post("/", async (req, res) => {
 
   let check = {
     players,
-    community: Array(5).fill(false),
+    community: Array(6).fill(false),
   };
 
   for (const suit of suits) {
@@ -85,7 +85,7 @@ router.post("/", async (req, res) => {
           currentTurn,
         },
       ],
-      { onConflict: "name" }
+      { onConflict: "name" },
     )
     .select();
 
@@ -137,6 +137,9 @@ router.post("/check/:player", async (req, res) => {
     } else if (!check.community[4]) {
       check.community[4] = true;
       check.players = Array(check.players.length).fill(false);
+    } else if (!check.community[5]) {
+      check.community[5] = true;
+      check.players = Array(check.players.length).fill(false);
     }
   }
 
@@ -174,7 +177,7 @@ router.put("/raise", async (req, res) => {
   const players = data.players;
 
   const updatedPlayers = players.map((player) =>
-    player.id === id ? { ...player, buy_in_amount } : player
+    player.id === id ? { ...player, buy_in_amount } : player,
   );
 
   const { error: updateError } = await supabase
@@ -220,7 +223,7 @@ supabase
     { event: "*", schema: "public", table: "lobby-data" },
     (payload) => {
       io.emit("game-data", payload.new);
-    }
+    },
   )
   .subscribe();
 
