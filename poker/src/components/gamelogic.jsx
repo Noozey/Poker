@@ -68,14 +68,24 @@ export function GamePlay({ lobbyData, socket }) {
     const allRevealed = check.every((c) => c);
 
     if (allRevealed) {
+      const playerWinnerCheckList = [];
+      if (playerAfterFold) {
+        playerAfterFold = [];
+        playerCard.map((value) => {
+          if (playerAfterFold.includes(value.id)) return;
+          playerWinnerCheckList = [...playerWinnerCheckList, value.id];
+        });
+      } else {
+        playerWinnerCheckList = playerCard;
+      }
       pot
         ? checkWinner(
-            playerAfterFold || playerCard,
+            playerWinnerCheckList,
             tableCard,
             check,
             socket,
             pot,
-            lobbyName
+            lobbyName,
           )
         : null;
       setShow(true);
@@ -195,11 +205,11 @@ export function GamePlay({ lobbyData, socket }) {
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - call }
-        : player
+        : player,
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id
+      (p) => p.id === session.user.id,
     );
 
     socket.emit("call", { lobbyName });
@@ -224,11 +234,11 @@ export function GamePlay({ lobbyData, socket }) {
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - raise }
-        : player
+        : player,
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id
+      (p) => p.id === session.user.id,
     );
 
     if (updatedPlayer) {
@@ -260,14 +270,14 @@ export function GamePlay({ lobbyData, socket }) {
                   {card.suit.symbol}
                 </div>
               </div>
-            ) : null
+            ) : null,
           )}
         </div>
       </div>
 
       {/* Player Hands */}
       {playerCard.map((player, index) =>
-        RenderPlayerHand(index, playerCard, show)
+        RenderPlayerHand(index, playerCard, show),
       )}
 
       {playerCard[currentTurn - 1].id === session.user.id &&
