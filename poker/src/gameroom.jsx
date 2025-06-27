@@ -12,7 +12,7 @@ export default function GameRoom() {
 
   useEffect(() => {
     // Connect socket only once
-    const socket = io("http://localhost:3000");
+    const socket = io("wss://poker-production-71d8.up.railway.app");
 
     socket.on("lobby-data", (data) => {
       if (data.name === lobbyName) {
