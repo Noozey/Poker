@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../context/authProvider";
-import logo from "../image/logo.png";
+import logo from "../image/Logo.png";
 import Lobby from "../lobby";
 
 export default function Login() {

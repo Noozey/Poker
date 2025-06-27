@@ -61,6 +61,7 @@ export function GamePlay({ lobbyData, socket }) {
   const newGame = async () => {
     setShow(false);
     await createCardData();
+    setPlayerAfterFold([]);
   };
 
   useEffect(() => {
@@ -74,7 +75,7 @@ export function GamePlay({ lobbyData, socket }) {
             check,
             socket,
             pot,
-            lobbyName,
+            lobbyName
           )
         : null;
       setShow(true);
@@ -92,6 +93,7 @@ export function GamePlay({ lobbyData, socket }) {
       setShow(data.show);
       setCurrentTurn(data.currentTurn);
       setCall(data.call);
+      setPlayerAfterFold(data.folduser);
     };
 
     const onGameData = (data) => {
@@ -193,11 +195,11 @@ export function GamePlay({ lobbyData, socket }) {
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - call }
-        : player,
+        : player
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id,
+      (p) => p.id === session.user.id
     );
 
     socket.emit("call", { lobbyName });
@@ -222,11 +224,11 @@ export function GamePlay({ lobbyData, socket }) {
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - raise }
-        : player,
+        : player
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id,
+      (p) => p.id === session.user.id
     );
 
     if (updatedPlayer) {
@@ -240,7 +242,6 @@ export function GamePlay({ lobbyData, socket }) {
       });
     }
   };
-
   return (
     <div className="bg-gray-800 w-full h-full mb-auto z-0 grid grid-cols-12 grid-rows-5 justify-center p-5 gap-5">
       <Message socket={socket} />
@@ -259,17 +260,18 @@ export function GamePlay({ lobbyData, socket }) {
                   {card.suit.symbol}
                 </div>
               </div>
-            ) : null,
+            ) : null
           )}
         </div>
       </div>
 
       {/* Player Hands */}
       {playerCard.map((player, index) =>
-        RenderPlayerHand(index, playerCard, show),
+        RenderPlayerHand(index, playerCard, show)
       )}
 
-      {playerCard[currentTurn - 1].id === session.user.id ? (
+      {playerCard[currentTurn - 1].id === session.user.id &&
+      !playerAfterFold.includes(session.user.id) ? (
         <div className="row-start-5 max-md:col-start-10 col-start-6 col-span-2 justify-self-center relative z-50 grid grid-rows-2 max-2xl:grid-cols-2 gap-6 place-items-center max-2xl:col-start-11 max-2xl:row-start-4">
           {/* Button row */}
           {check.every((value) => value === true) ? null : (
