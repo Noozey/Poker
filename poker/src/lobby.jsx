@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "./context/authProvider";
 import { Button } from "@/components/ui/button";
-import logo from "./image/logo.png";
+import logo from "./image/Logo.png";
 import {
   Dialog,
   DialogContent,
