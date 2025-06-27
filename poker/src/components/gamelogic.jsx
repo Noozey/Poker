@@ -68,26 +68,29 @@ export function GamePlay({ lobbyData, socket }) {
     const allRevealed = check.every((c) => c);
 
     if (allRevealed) {
-      const playerWinnerCheckList = [];
-      if (playerAfterFold) {
-        playerAfterFold = [];
-        playerCard.map((value) => {
-          if (playerAfterFold.includes(value.id)) return;
-          playerWinnerCheckList = [...playerWinnerCheckList, value.id];
+      let playerWinnerCheckList = [];
+
+      if (playerAfterFold && playerAfterFold.length > 0) {
+        playerCard.forEach((value) => {
+          if (!playerAfterFold.includes(value.id)) {
+            playerWinnerCheckList.push(value.id);
+          }
         });
       } else {
-        playerWinnerCheckList = playerCard;
+        playerWinnerCheckList = playerCard.map((p) => p.id);
       }
-      pot
-        ? checkWinner(
-            playerWinnerCheckList,
-            tableCard,
-            check,
-            socket,
-            pot,
-            lobbyName,
-          )
-        : null;
+
+      if (pot) {
+        checkWinner(
+          playerWinnerCheckList,
+          tableCard,
+          check,
+          socket,
+          pot,
+          lobbyName,
+        );
+      }
+
       setShow(true);
     }
   }, [check]);
