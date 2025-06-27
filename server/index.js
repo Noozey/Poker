@@ -15,10 +15,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// create http server first
 const server = http.createServer(app);
 
-// then create socket.io server with proper CORS settings
 export const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173",
@@ -107,6 +105,20 @@ const updateCall = async (data) => {
   }
 };
 
+const updateFold = async (data) => {
+  const { data: fold, error } = await supabase
+    .from("lobby-data")
+    .update({ folduser: [data.id] })
+    .eq("name", data.lobbyName)
+    .select("*");
+
+  if (error) {
+    console.error("Error updating fold:", error);
+  } else {
+    console.log("Updated fold:", fold);
+  }
+};
+
 io.on("connection", (socket) => {
   socket.on("gamedetails", (msg) => {
     socket.broadcast.emit("gamedetails", msg);
@@ -122,6 +134,9 @@ io.on("connection", (socket) => {
   socket.on("call", (data) => {
     updateCall(data);
     console.log("hello", data);
+  });
+  socket.on("fold", (data) => {
+    updateFold(data);
   });
   socket.on("disconnect", () => {});
 });

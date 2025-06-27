@@ -83,6 +83,7 @@ router.post("/", async (req, res) => {
           dealer: changeDealer,
           show: false,
           currentTurn,
+          folduser: [],
         },
       ],
       { onConflict: "name" },

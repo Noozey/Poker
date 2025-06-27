@@ -33,6 +33,7 @@ export function GamePlay({ lobbyData, socket }) {
   const [currentTurn, setCurrentTurn] = useState(1);
   const [raise, setRaise] = useState(0);
   const [call, setCall] = useState(0);
+  const [playerAfterFold, setPlayerAfterFold] = useState([]);
 
   useEffect(() => {
     const data = async () => {
@@ -67,7 +68,14 @@ export function GamePlay({ lobbyData, socket }) {
 
     if (allRevealed) {
       pot
-        ? checkWinner(playerCard, tableCard, check, socket, pot, lobbyName)
+        ? checkWinner(
+            playerAfterFold || playerCard,
+            tableCard,
+            check,
+            socket,
+            pot,
+            lobbyName,
+          )
         : null;
       setShow(true);
     }
@@ -159,6 +167,13 @@ export function GamePlay({ lobbyData, socket }) {
       numPlayer: lobbyData.players.length,
       lobbyName,
     });
+    socket.emit("fold", { lobbyName: lobbyName, id: session.user.id });
+
+    const index = playerCard.findIndex((data) => data.id === session.user.id);
+    if (index !== -1) {
+      const newPlayerList = playerCard.filter((_, i) => i !== index);
+      setPlayerAfterFold(newPlayerList);
+    }
   };
 
   const handleCheck = async () => {
