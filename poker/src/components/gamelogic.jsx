@@ -68,9 +68,29 @@ export function GamePlay({ lobbyData, socket }) {
     const allRevealed = check.every((c) => c);
 
     if (allRevealed) {
-      pot
-        ? checkWinner(playerCard, tableCard, check, socket, pot, lobbyName)
-        : null;
+      let playerWinnerCheckList = [];
+
+      if (playerAfterFold && playerAfterFold.length > 0) {
+        playerCard.forEach((value) => {
+          if (!playerAfterFold.includes(value.id)) {
+            playerWinnerCheckList.push(value.id);
+          }
+        });
+      } else {
+        playerWinnerCheckList = playerCard.map((p) => p.id);
+      }
+
+      if (pot) {
+        checkWinner(
+          playerWinnerCheckList,
+          tableCard,
+          check,
+          socket,
+          pot,
+          lobbyName
+        );
+      }
+
       setShow(true);
     }
   }, [check]);
