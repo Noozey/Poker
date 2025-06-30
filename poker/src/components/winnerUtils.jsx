@@ -30,7 +30,7 @@ export const cardToString = (card) => {
 };
 
 export const checkWinner = (
-  playerCard,
+  playerWinnerCheckList,
   tableCard,
   check,
   socket,
@@ -39,7 +39,7 @@ export const checkWinner = (
 ) => {
   const communityCards = tableCard.filter((_, idx) => check[idx]);
 
-  const evaluated = playerCard.map((player) => {
+  const evaluated = playerWinnerCheckList.map((player) => {
     const hand = [...player.cards, ...communityCards];
     const stringHand = hand.map(cardToString);
     return {
