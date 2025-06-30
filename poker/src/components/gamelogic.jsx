@@ -69,14 +69,7 @@ export function GamePlay({ lobbyData, socket }) {
 
     if (allRevealed) {
       pot
-        ? checkWinner(
-            playerAfterFold || playerCard,
-            tableCard,
-            check,
-            socket,
-            pot,
-            lobbyName
-          )
+        ? checkWinner(playerCard, tableCard, check, socket, pot, lobbyName)
         : null;
       setShow(true);
     }
