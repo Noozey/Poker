@@ -87,7 +87,11 @@ export function GamePlay({ lobbyData, socket }) {
           check,
           socket,
           pot,
+<<<<<<< HEAD
           lobbyName
+=======
+          lobbyName,
+>>>>>>> 1bedc56118d9314058bb35dd5f8b5e2a7c5b5fb7
         );
       }
 
@@ -208,11 +212,11 @@ export function GamePlay({ lobbyData, socket }) {
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - call }
-        : player
+        : player,
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id
+      (p) => p.id === session.user.id,
     );
 
     socket.emit("call", { lobbyName });
@@ -237,11 +241,11 @@ export function GamePlay({ lobbyData, socket }) {
     const updatedPlayerCard = playerCard.map((player) =>
       player.id === session.user.id
         ? { ...player, buy_in_amount: player.buy_in_amount - raise }
-        : player
+        : player,
     );
 
     const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id
+      (p) => p.id === session.user.id,
     );
 
     if (updatedPlayer) {
@@ -273,14 +277,14 @@ export function GamePlay({ lobbyData, socket }) {
                   {card.suit.symbol}
                 </div>
               </div>
-            ) : null
+            ) : null,
           )}
         </div>
       </div>
 
       {/* Player Hands */}
       {playerCard.map((player, index) =>
-        RenderPlayerHand(index, playerCard, show)
+        RenderPlayerHand(index, playerCard, show),
       )}
 
       {playerCard[currentTurn - 1].id === session.user.id &&
