@@ -87,11 +87,7 @@ export function GamePlay({ lobbyData, socket }) {
           check,
           socket,
           pot,
-<<<<<<< HEAD
-          lobbyName
-=======
           lobbyName,
->>>>>>> 1bedc56118d9314058bb35dd5f8b5e2a7c5b5fb7
         );
       }
 
