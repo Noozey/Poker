@@ -224,6 +224,7 @@ supabase
     { event: "*", schema: "public", table: "lobby-data" },
     (payload) => {
       io.emit("game-data", payload.new);
+      console.log(payload.new);
     },
   )
   .subscribe();
