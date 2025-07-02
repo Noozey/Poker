@@ -66,29 +66,17 @@ export function GamePlay({ lobbyData, socket }) {
 
   useEffect(() => {
     const allRevealed = check.every((c) => c);
-
+    let playerWinnerCheckList = [];
+    console.log(playerWinnerCheckList);
     if (allRevealed) {
-      let playerWinnerCheckList = [];
-
       if (playerAfterFold && playerAfterFold.length > 0) {
-        playerCard.forEach((value) => {
-          if (!playerAfterFold.includes(value.id)) {
-            playerWinnerCheckList.push(value.id);
-          }
-        });
+        playerWinnerCheckList = playerAfterFold.map((p) => p.id);
       } else {
         playerWinnerCheckList = playerCard.map((p) => p.id);
       }
 
       if (pot) {
-        checkWinner(
-          playerWinnerCheckList,
-          tableCard,
-          check,
-          socket,
-          pot,
-          lobbyName,
-        );
+        checkWinner(playerCard, tableCard, check, socket, pot, lobbyName);
       }
 
       setShow(true);

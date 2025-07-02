@@ -30,28 +30,28 @@ export const cardToString = (card) => {
 };
 
 export const checkWinner = (
-  playerWinnerCheckList,
+  playerCard,
   tableCard,
   check,
   socket,
   pot,
-  lobbyName
+  lobbyName,
 ) => {
   const communityCards = tableCard.filter((_, idx) => check[idx]);
 
-  if (playerWinnerCheckList.length <= 1) {
-    const winner = playerWinnerCheckList[0];
-    socket.emit("winner", {
-      winner: winner.id,
-      name: lobbyName,
-      pot,
-    });
-    toast.success(
-      `${winner.name || "Player"} wins the pot with ${winner.name}!!`
-    );
-    return;
-  }
-  const evaluated = playerWinnerCheckList.map((player) => {
+  // if (playerWinnerCheckList.length <= 1) {
+  //   const winner = playerWinnerCheckList[0];
+  //   socket.emit("winner", {
+  //     winner: winner.id,
+  //     name: lobbyName,
+  //     pot,
+  //   });
+  //   toast.success(
+  //     `${winner.name || "Player"} wins the pot with ${winner.name}!!`
+  //   );
+  //   return;
+  // }
+  const evaluated = playerCard.map((player) => {
     const hand = [...player.cards, ...communityCards];
     const stringHand = hand.map(cardToString);
     return {
@@ -62,7 +62,7 @@ export const checkWinner = (
   });
 
   evaluated.sort((a, b) =>
-    Hand.winners([b.result, a.result])[0] === b.result ? 1 : -1
+    Hand.winners([b.result, a.result])[0] === b.result ? 1 : -1,
   );
 
   const winners = Hand.winners(evaluated.map((e) => e.result));
@@ -79,14 +79,14 @@ export const checkWinner = (
     toast.success(
       `${winningPlayers[0].name || "Player"} wins the pot with ${
         winningPlayers[0].name
-      }!!`
+      }!!`,
     );
     return;
   } else {
     toast(
       `It's a tie between: ${winningPlayers
         .map((p) => p.name || "Player")
-        .join(", ")}`
+        .join(", ")}`,
     );
     return;
   }

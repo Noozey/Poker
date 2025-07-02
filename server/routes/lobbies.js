@@ -63,11 +63,11 @@ router.put("/join", async (req, res) => {
 
   const newPlayers = updatedPlayers.some((player) => player.id === user_id.id)
     ? updatedPlayers.map((player) =>
-        player.id === user_id.id ? user_id : player
+        player.id === user_id.id ? user_id : player,
       )
     : lobbies.players.length >= lobbies.max_players
-    ? null
-    : [...updatedPlayers, user_id];
+      ? null
+      : [...updatedPlayers, user_id];
 
   const { data, error: updateError } = await supabase
     .from("lobbies")
@@ -107,7 +107,8 @@ supabase
     { event: "*", schema: "public", table: "lobbies" },
     (payload) => {
       io.emit("lobby-data", payload.new);
-    }
+      console.log(payload.new);
+    },
   )
   .subscribe();
 
