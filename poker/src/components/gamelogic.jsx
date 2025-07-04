@@ -135,7 +135,7 @@ export function GamePlay({ lobbyData, socket }) {
     };
 
     getCardDetails();
-  }, [cardData, lobbyData, dealer]);
+  }, [cardData, lobbyData, socket, dealer]);
 
   if (!cardData) {
     return <div>Loading</div>;

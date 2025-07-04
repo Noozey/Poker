@@ -107,7 +107,6 @@ supabase
     { event: "*", schema: "public", table: "lobbies" },
     (payload) => {
       io.emit("lobby-data", payload.new);
-      console.log(payload.new);
     },
   )
   .subscribe();
