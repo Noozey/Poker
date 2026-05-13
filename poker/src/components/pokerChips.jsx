@@ -53,7 +53,7 @@ function DropZone({ onDrop, droppedChips, isActive, setRaise }) {
 
   return (
     <div
-      className={`absolute bottom-0 left-0 right-0 rounded-t-2xl border-4 border-dashed border-b-0 transition-all duration-300 z-30 flex items-center justify-center ${
+      className={`absolute bottom-0 left-0 max-md:left-15 max-xl:left-0 max-md:h-[50px] max-2xl:left-25 right-0 rounded-t-2xl border-4 border-dashed border-b-0 transition-all duration-300 z-30 flex items-center justify-center ${
         isActive
           ? "border-green-400 bg-green-900/20 backdrop-blur-sm"
           : "border-amber-600/50 bg-green-900/10 hover:border-amber-600/70"
@@ -82,12 +82,10 @@ function DropZone({ onDrop, droppedChips, isActive, setRaise }) {
         </div>
       ) : (
         <div className="text-center">
-          <div className="text-amber-300 text-lg font-medium mb-1">
+          <div className="text-amber-300 text-lg font-medium mb-1 max-md:hidden">
             Betting Area
           </div>
-          <div className="text-amber-400/70 text-sm">
-            Drag chips here to bet
-          </div>
+          <div className="text-amber-400/70 text-sm">Drag chips here</div>
         </div>
       )}
     </div>
