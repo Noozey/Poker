@@ -103,6 +103,7 @@ const CreateLobby = ({ setInRoom }) => {
       setInRoom(true);
       setLobbyName(lobbyCode);
     } catch (error) {
+      console.error("CREATE LOBBY ERROR:", error.response?.data);
       toast(
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <svg
@@ -122,10 +123,8 @@ const CreateLobby = ({ setInRoom }) => {
             <path d="m9 9 6 6" />
           </svg>
           Name already in use
-        </div>
+        </div>,
       );
-
-      console.log(error);
     }
   };
   return (

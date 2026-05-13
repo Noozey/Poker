@@ -12,7 +12,7 @@ export default function GameRoom() {
 
   useEffect(() => {
     // Connect socket only once
-    const socket = io("wss://poker-production-71d8.up.railway.app");
+    const socket = io("http://localhost:3000/");
 
     socket.on("lobby-data", (data) => {
       if (data.name === lobbyName) {
@@ -64,7 +64,7 @@ export default function GameRoom() {
           <path d="m9 12 2 2 4-4" />
         </svg>
         Connected to the room...
-      </div>
+      </div>,
     );
   }, [lobbyName]);
 
