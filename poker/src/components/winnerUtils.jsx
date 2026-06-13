@@ -39,18 +39,6 @@ export const checkWinner = (
 ) => {
   const communityCards = tableCard.filter((_, idx) => check[idx]);
 
-  // if (playerWinnerCheckList.length <= 1) {
-  //   const winner = playerWinnerCheckList[0];
-  //   socket.emit("winner", {
-  //     winner: winner.id,
-  //     name: lobbyName,
-  //     pot,
-  //   });
-  //   toast.success(
-  //     `${winner.name || "Player"} wins the pot with ${winner.name}!!`
-  //   );
-  //   return;
-  // }
   const evaluated = playerCard.map((player) => {
     const hand = [...player.cards, ...communityCards];
     const stringHand = hand.map(cardToString);

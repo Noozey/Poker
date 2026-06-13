@@ -14,19 +14,9 @@ export function GamePlay({ lobbyData, socket }) {
   const { session } = useAuth();
   const { lobbyName } = useLobbyData();
   const [cardData, setCardData] = useState([]);
-  const [playerCard, setPlayerCard] = useState([
-    { player: 1, id: session.user.id, cards: [] },
-    { player: 2, id: lobbyData.players[1]?.id || null, cards: [] },
-  ]);
+  const [playerCard, setPlayerCard] = useState([]);
   const [tableCard, setTableCard] = useState([]);
-  const [check, setCheck] = useState([
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-  ]);
+  const [check, setCheck] = useState(Array(6).fill(false));
   const [pot, setPot] = useState(0);
   const [dealer, setDealer] = useState(null);
   const [show, setShow] = useState(false);
@@ -34,22 +24,119 @@ export function GamePlay({ lobbyData, socket }) {
   const [raise, setRaise] = useState(0);
   const [call, setCall] = useState(0);
   const [playerAfterFold, setPlayerAfterFold] = useState([]);
+  const [gameStarted, setGameStarted] = useState(false);
+
+  const applyGameState = (data) => {
+    setCardData(data.draweddeck ?? []);
+    setPot(data.pot ?? 0);
+    setCheck(data.check?.community ?? Array(6).fill(false));
+    setDealer(data.dealer ?? null);
+    setShow(data.show ?? false);
+    setCurrentTurn(data.currentTurn ?? 1);
+    setCall(data.call ?? 0);
+    setPlayerAfterFold(data.folduser ?? []);
+    setGameStarted(true);
+  };
 
   useEffect(() => {
-    const data = async () => {
-      await api.get(`/game/data/${lobbyName}`).then((response) => {
-        console.log(response.data[0]);
-        setCardData(response.data[0].draweddeck);
-        setPot(response.data[0].pot);
-        setCheck(response.data[0].check.community);
-        setDealer(response.data[0].dealer);
-        setShow(response.data[0].show);
-        setCurrentTurn(response.data[0].currentTurn);
-      });
+    const fetchGameData = async () => {
+      try {
+        const response = await api.get(`/game/data/${lobbyName}`);
+        applyGameState(response.data);
+      } catch (error) {
+        if (error.response?.status === 404) {
+          setGameStarted(false);
+        } else {
+          console.error("Failed to fetch game data:", error);
+        }
+      }
     };
 
-    data();
+    fetchGameData();
   }, [lobbyName]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const onGameData = (data) => applyGameState(data);
+
+    const onCheckUpdate = (data) => {
+      setCheck(data.check?.community ?? Array(6).fill(false));
+    };
+
+    const onTurnChange = ({ currentTurn: next }) => {
+      setCurrentTurn(next);
+    };
+
+    const onRaiseUpdate = ({ pot: newPot, call: newCall }) => {
+      if (newPot !== undefined) setPot(newPot);
+      if (newCall !== undefined) setCall(newCall);
+    };
+
+    const onCall = () => setCall(0);
+
+    const onFold = ({ id }) => {
+      setPlayerAfterFold((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    };
+
+    const onWinner = ({ winner, pot: wonPot }) => {
+      toast(`Player ${winner} won the pot of ${wonPot}!`);
+    };
+
+    socket.on("game-data", onGameData);
+    socket.on("check-update", onCheckUpdate);
+    socket.on("turn-change", onTurnChange);
+    socket.on("raise-update", onRaiseUpdate);
+    socket.on("call", onCall);
+    socket.on("fold", onFold);
+    socket.on("winner", onWinner);
+
+    return () => {
+      socket.off("game-data", onGameData);
+      socket.off("check-update", onCheckUpdate);
+      socket.off("turn-change", onTurnChange);
+      socket.off("raise-update", onRaiseUpdate);
+      socket.off("call", onCall);
+      socket.off("fold", onFold);
+      socket.off("winner", onWinner);
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    if (!cardData.length || !lobbyData?.players?.length) return;
+
+    const numberOfPlayers = lobbyData.players.length;
+    const holeCards = cardData.slice(0, numberOfPlayers * 2);
+    const communityCards = cardData.slice(numberOfPlayers * 2);
+
+    const dealt = lobbyData.players.map((player, idx) => ({
+      player: idx + 1,
+      id: player.id,
+      cards: holeCards.slice(idx * 2, idx * 2 + 2),
+      buy_in_amount: player.buy_in_amount,
+      name: player.name,
+      dealer,
+    }));
+
+    setPlayerCard(dealt);
+    setTableCard(communityCards);
+  }, [cardData, lobbyData, dealer]);
+
+  useEffect(() => {
+    if (!check.every(Boolean)) return;
+    if (!pot) return;
+
+    const activeIds =
+      playerAfterFold.length > 0
+        ? playerCard.filter((p) => !playerAfterFold.includes(p.id))
+        : playerCard;
+
+    if (activeIds.length > 0) {
+      checkWinner(playerCard, tableCard, check, socket, pot, lobbyName);
+    }
+
+    setShow(true);
+  }, [check]);
 
   const createCardData = async () => {
     await api.post(`/game/`, {
@@ -60,128 +147,51 @@ export function GamePlay({ lobbyData, socket }) {
 
   const newGame = async () => {
     setShow(false);
-    await createCardData();
     setPlayerAfterFold([]);
+    await createCardData();
   };
 
-  useEffect(() => {
-    const allRevealed = check.every((c) => c);
-    let playerWinnerCheckList = [];
-    console.log(playerWinnerCheckList);
-    if (allRevealed) {
-      if (playerAfterFold && playerAfterFold.length > 0) {
-        playerWinnerCheckList = playerAfterFold.map((p) => p.id);
-      } else {
-        playerWinnerCheckList = playerCard.map((p) => p.id);
-      }
-
-      if (pot) {
-        checkWinner(playerCard, tableCard, check, socket, pot, lobbyName);
-      }
-
-      setShow(true);
-    }
-  }, [check]);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleGameData = (data) => {
-      setCardData(data.draweddeck);
-      setPot(data.pot);
-      setCheck(data.check.community);
-      setDealer(data.dealer);
-      setShow(data.show);
-      setCurrentTurn(data.currentTurn);
-      setCall(data.call);
-      setPlayerAfterFold(data.folduser);
-    };
-
-    const onGameData = (data) => {
-      if (data.name === lobbyName) {
-        handleGameData(data);
-      }
-    };
-
-    socket.on("game-data", onGameData);
-
-    return () => {
-      socket.off("game-data", onGameData);
-    };
-  }, [lobbyName, socket]);
-
-  useEffect(() => {
-    const getCardDetails = () => {
-      const numberOfPlayers = lobbyData.players.length;
-      // first 2 cards for each player
-      const cards = cardData.slice(0, numberOfPlayers * 2);
-      // rest for the table
-      const table = cardData.slice(numberOfPlayers * 2);
-
-      // deal cards to players
-      const tempPlayerCards = lobbyData.players.map((player, idx) => {
-        return {
-          player: idx + 1,
-          id: player.id,
-          cards: cards.slice(idx * 2, idx * 2 + 2),
-          buy_in_amount: player.buy_in_amount,
-          name: player.name,
-          dealer,
-        };
-      });
-
-      setPlayerCard(tempPlayerCards);
-      setTableCard(table);
-    };
-
-    getCardDetails();
-  }, [cardData, lobbyData, socket, dealer]);
-
-  if (!cardData) {
-    return <div>Loading</div>;
-  }
-
-  const updateCheck = async (data) => {
-    let player = playerCard.find((p) => p.id === session.user.id);
+  const updateCheck = async (state) => {
+    const player = playerCard.find((p) => p.id === session.user.id);
     if (!player) return;
 
     try {
-      await api.post(`/game/check/${player.player}`, {
-        lobbyName,
-        state: data,
-      });
+      await api.post(`/game/check/${player.player}`, { lobbyName, state });
     } catch (error) {
-      console.error("Check failed.", error);
+      console.error("Check failed:", error);
+      toast("Action failed — please try again.");
+      return;
     }
+
     socket.emit("gamedetails", {
       name: session.user.user_metadata.name,
-      state: data,
+      state,
       currentTurn,
       numPlayer: lobbyData.players.length,
       lobbyName,
+      foldedIds: playerAfterFold,
     });
   };
 
-  const handleFold = async () => {
+  const handleFold = () => {
     socket.emit("gamedetails", {
       name: session.user.user_metadata.name,
       state: "Fold",
       currentTurn,
       numPlayer: lobbyData.players.length,
       lobbyName,
+      foldedIds: playerAfterFold,
     });
-    socket.emit("fold", { lobbyName: lobbyName, id: session.user.id });
+    socket.emit("fold", { lobbyName, id: session.user.id });
 
-    const index = playerCard.findIndex((data) => data.id === session.user.id);
-    if (index !== -1) {
-      const newPlayerList = playerCard.filter((_, i) => i !== index);
-      setPlayerAfterFold(newPlayerList);
-    }
+    setPlayerAfterFold((prev) =>
+      prev.includes(session.user.id) ? prev : [...prev, session.user.id],
+    );
   };
 
-  const handleCheck = async () => {
+  const handleCheck = () => {
     if (call !== 0) {
-      toast("You can't check as opponent has rasied");
+      toast("You can't check — opponent has raised.");
       return;
     }
     updateCheck("check");
@@ -189,64 +199,76 @@ export function GamePlay({ lobbyData, socket }) {
 
   const handleCall = async () => {
     if (call === 0) {
-      toast("You can raise or check");
+      toast("Nothing to call — you can raise or check.");
       return;
     }
 
-    const updatedPlayerCard = playerCard.map((player) =>
-      player.id === session.user.id
-        ? { ...player, buy_in_amount: player.buy_in_amount - call }
-        : player,
-    );
+    const myCard = playerCard.find((p) => p.id === session.user.id);
+    if (!myCard) return;
 
-    const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id,
-    );
+    const newAmount = myCard.buy_in_amount - call;
 
     socket.emit("call", { lobbyName });
     updateCheck("call");
 
-    if (updatedPlayer) {
-      await api.put("game/raise", {
-        lobbyName,
-        id: updatedPlayer.id,
-        buy_in_amount: updatedPlayer.buy_in_amount,
-        pot: pot + call,
-      });
-    }
+    await api.put("game/raise", {
+      lobbyName,
+      id: session.user.id,
+      buy_in_amount: newAmount,
+      pot: pot + call,
+    });
   };
 
   const handleRaise = async () => {
     if (raise === 0) {
-      toast("You can't raise with 0 vlaue in the pot");
+      toast("Set a raise amount first.");
       return;
     }
+
+    const myCard = playerCard.find((p) => p.id === session.user.id);
+    if (!myCard) return;
+
+    const newAmount = myCard.buy_in_amount - raise;
+
     updateCheck("raised");
-    const updatedPlayerCard = playerCard.map((player) =>
-      player.id === session.user.id
-        ? { ...player, buy_in_amount: player.buy_in_amount - raise }
-        : player,
-    );
 
-    const updatedPlayer = updatedPlayerCard.find(
-      (p) => p.id === session.user.id,
-    );
-
-    if (updatedPlayer) {
-      console.log();
-      await api.put("game/raise", {
-        lobbyName,
-        id: updatedPlayer.id,
-        buy_in_amount: updatedPlayer.buy_in_amount,
-        pot: pot + raise,
-        raise,
-      });
-    }
+    await api.put("game/raise", {
+      lobbyName,
+      id: session.user.id,
+      buy_in_amount: newAmount,
+      pot: pot + raise,
+      raise,
+    });
   };
+
+  const myPlayer = playerCard.find((p) => p.id === session.user.id);
+  const isMyTurn = playerCard[currentTurn - 1]?.id === session.user.id;
+  const isFolded = playerAfterFold.includes(session.user.id);
+  const allRevealed = check.every(Boolean);
+
+  if (!gameStarted || !cardData.length) {
+    return (
+      <div className="bg-gray-800 w-full h-full flex flex-col items-center justify-center gap-6 text-gray-100">
+        <p className="text-xl text-gray-400">
+          Waiting for host to start the game...
+        </p>
+        {lobbyData.creator_id === session.user.id && (
+          <Button
+            className="bg-blue-800 hover:bg-blue-900 text-gray-50 font-semibold py-2 px-4 rounded-md"
+            onClick={newGame}
+          >
+            Start Game
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-800 w-full h-full mb-auto z-0 grid grid-cols-12 grid-rows-5 justify-center p-5 gap-5">
       <Message socket={socket} />
-      {/* Table Cards */}
+
+      {/* Community Cards */}
       <div className="h-full row-start-2 row-end-5 col-start-4 col-end-10 max-md:col-start-3 max-md:col-end-8 max-2xl:row-start-3 max-2xl:col-start-5 max-xl:col-end-9 flex flex-col gap-6 justify-center items-center bg-green-900 max-xl:rounded-4xl rounded-full border-[20px] border-amber-950 shadow-[inset_4px_4px_10px_rgba(0,0,0,0.5),inset_-4px_-4px_10px_rgba(0,0,0,0.5),0_0_20px_rgba(0,0,0,0.8)]">
         <div className="w-[80%] h-[150px] grid grid-cols-5 gap-7">
           {tableCard.map((card, index) =>
@@ -257,7 +279,7 @@ export function GamePlay({ lobbyData, socket }) {
               >
                 {card.rank}
                 {card.suit.symbol}
-                <div className="h-full w-full flex items-center justify-center text-6xl max-md:text-2xl ">
+                <div className="h-full w-full flex items-center justify-center text-6xl max-md:text-2xl">
                   {card.suit.symbol}
                 </div>
               </div>
@@ -271,11 +293,10 @@ export function GamePlay({ lobbyData, socket }) {
         RenderPlayerHand(index, playerCard, show),
       )}
 
-      {playerCard[currentTurn - 1].id === session.user.id &&
-      !playerAfterFold.includes(session.user.id) ? (
+      {/* Action buttons — only shown on your turn and if not folded */}
+      {isMyTurn && !isFolded && (
         <div className="row-start-5 max-md:col-start-10 col-start-6 col-span-2 justify-self-center relative z-50 grid grid-rows-2 max-2xl:grid-cols-2 gap-6 place-items-center max-2xl:col-start-11 max-2xl:row-start-4">
-          {/* Button row */}
-          {check.every((value) => value === true) ? null : (
+          {!allRevealed && (
             <div className="flex justify-center max-md:w-[50px] gap-3 max-2xl:flex-col max-2xl:col-start-1">
               <Button
                 onClick={handleCall}
@@ -296,7 +317,7 @@ export function GamePlay({ lobbyData, socket }) {
                 Fold
               </Button>
               <Button
-                onClick={() => handleCheck("Checked")}
+                onClick={handleCheck}
                 className="bg-blue-900 text-gray-50 font-semibold py-2 px-6 rounded-md shadow-md transition-transform hover:scale-105 hover:bg-blue-800 hover:shadow-lg border border-gray-700"
               >
                 Check
@@ -307,13 +328,10 @@ export function GamePlay({ lobbyData, socket }) {
             <Chips setRaise={setRaise} />
           </div>
         </div>
-      ) : null}
+      )}
 
-      <div
-        className="p-2 rounded-lg h-fit w-fit bg-gray-700
-        shadow-2xl flex flex-col max-[767px]:flex-row gap-4 max-[767px]:gap-2 col-start-11 2xl:col-start-12 col-span-2 justify-self-center
-max-w-[300px] sm:max-w-[200px] text-sm sm:p-2 max-md:col-start-10 max-sm:col-start-9"
-      >
+      {/* Sidebar: player list, pot, new game */}
+      <div className="p-2 rounded-lg h-fit w-fit bg-gray-700 shadow-2xl flex flex-col max-[767px]:flex-row gap-4 max-[767px]:gap-2 col-start-11 2xl:col-start-12 col-span-2 justify-self-center max-w-[300px] sm:max-w-[200px] text-sm sm:p-2 max-md:col-start-10 max-sm:col-start-9">
         <div>
           <h3 className="text-gray-100 font-semibold mb-4 max-[767px]:mb-2">
             Players
@@ -323,11 +341,15 @@ max-w-[300px] sm:max-w-[200px] text-sm sm:p-2 max-md:col-start-10 max-sm:col-sta
               {playerCard.map((player, index) => (
                 <li
                   key={index}
-                  className="bg-gray-600 p-2 rounded-md max-[767px]:p-1"
+                  className={`bg-gray-600 p-2 rounded-md max-[767px]:p-1 ${
+                    currentTurn === player.player
+                      ? "ring-2 ring-yellow-400"
+                      : ""
+                  } ${playerAfterFold.includes(player.id) ? "opacity-40 line-through" : ""}`}
                 >
                   {session.user.id === player.id ? (
                     <div className="font-semibold text-green-400">
-                      Me: {player.buy_in_amount}
+                      You: {player.buy_in_amount}
                     </div>
                   ) : (
                     <div>
@@ -339,20 +361,20 @@ max-w-[300px] sm:max-w-[200px] text-sm sm:p-2 max-md:col-start-10 max-sm:col-sta
             </ul>
           </ScrollArea>
         </div>
-        <div className="flex flex-col gap-5 h-full justify-center items-center">
-          <div className="max-[767px]:text-xs">Pot Size: {pot}</div>
 
-          {lobbyData.creator_id === session.user.id ? (
+        <div className="flex flex-col gap-5 h-full justify-center items-center">
+          <div className="max-[767px]:text-xs text-gray-100">Pot: {pot}</div>
+
+          {lobbyData.creator_id === session.user.id && (
             <div className="flex justify-center mt-4 max-[767px]:mt-0 max-[767px]:ml-2">
               <Button
-                className="bg-blue-800 hover:bg-blue-900 text-gray-50 font-semibold py-2 px-4 rounded-md shadow-md transform hover:translate-y-[-2px] transition-transform duration-300 ease-in-out
-        max-[767px]:py-1 max-[767px]:px-2 max-[767px]:text-xs"
+                className="bg-blue-800 hover:bg-blue-900 text-gray-50 font-semibold py-2 px-4 rounded-md shadow-md transform hover:translate-y-[-2px] transition-transform duration-300 ease-in-out max-[767px]:py-1 max-[767px]:px-2 max-[767px]:text-xs"
                 onClick={newGame}
               >
                 New Game
               </Button>
             </div>
-          ) : null}
+          )}
         </div>
       </div>
     </div>
