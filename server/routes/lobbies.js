@@ -28,61 +28,61 @@ router.post("/create", async (req, res) => {
         players,
       },
     ])
-    .select();
+    .select()
+    .single();
 
   if (error) {
-    console.error("Error creating lobby:", error.message);
+    console.error("create lobby:", error.message);
     return res.status(500).json({ error: error.message });
   }
 
-  // 5. Respond
-  res.status(201).json({
-    message: "Lobby and state table created successfully",
-    lobby: data,
-  });
+  return res.status(201).json({ message: "Lobby created", lobby: data });
 });
 
 router.put("/join", async (req, res) => {
   const { lobby_code, password, user_id } = req.body;
 
-  let { data: lobbies, error: fetchError } = await supabase
+  const { data: lobby, error: fetchError } = await supabase
     .from("lobbies")
-    .select("id, players,max_players")
+    .select("id, players, max_players")
     .eq("name", lobby_code)
     .eq("password", password || "")
     .maybeSingle();
 
-  if (fetchError || !lobbies) {
-    console.error("Error fetching lobby:", fetchError?.message);
+  if (fetchError || !lobby) {
     return res
       .status(404)
       .json({ error: "Lobby not found or password incorrect" });
   }
 
-  const updatedPlayers = lobbies.players || [];
+  const existing = lobby.players || [];
+  const alreadyIn = existing.some((p) => p.id === user_id.id);
 
-  const newPlayers = updatedPlayers.some((player) => player.id === user_id.id)
-    ? updatedPlayers.map((player) =>
-        player.id === user_id.id ? user_id : player,
-      )
-    : lobbies.players.length >= lobbies.max_players
-      ? null
-      : [...updatedPlayers, user_id];
+  let newPlayers;
+  if (alreadyIn) {
+    newPlayers = existing.map((p) => (p.id === user_id.id ? user_id : p));
+  } else if (existing.length >= lobby.max_players) {
+    return res.status(400).json({ error: "Lobby is full" });
+  } else {
+    newPlayers = [...existing, user_id];
+  }
 
   const { data, error: updateError } = await supabase
     .from("lobbies")
     .update({ players: newPlayers })
-    .eq("id", lobbies.id)
-    .select();
+    .eq("id", lobby.id)
+    .select()
+    .single();
 
   if (updateError) {
-    console.error("Error updating lobby:", updateError.message);
     return res.status(500).json({ error: updateError.message });
   }
 
-  res
+  io.to(lobby_code).emit("lobby-data", data);
+
+  return res
     .status(200)
-    .json({ message: "Joined lobby successfully", lobby: data, success: true });
+    .json({ message: "Joined lobby", lobby: data, success: true });
 });
 
 router.get("/all/:lobbyName", async (req, res) => {
@@ -91,24 +91,14 @@ router.get("/all/:lobbyName", async (req, res) => {
   const { data, error } = await supabase
     .from("lobbies")
     .select("*")
-    .eq("name", lobbyName);
+    .eq("name", lobbyName)
+    .single();
 
-  if (error || !data || data.length === 0) {
-    console.error("Error fetching lobby:", error?.message || "Not found");
+  if (error || !data) {
     return res.status(404).json({ error: "Lobby not found" });
   }
-  res.status(200).json(data[0]);
-});
 
-supabase
-  .channel("lobbies")
-  .on(
-    "postgres_changes",
-    { event: "*", schema: "public", table: "lobbies" },
-    (payload) => {
-      io.emit("lobby-data", payload.new);
-    },
-  )
-  .subscribe();
+  return res.status(200).json(data);
+});
 
 export default router;

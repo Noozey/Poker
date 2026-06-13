@@ -3,10 +3,8 @@ import dotenv from "dotenv";
 import room from "./routes/lobbies.js";
 import auth from "./routes/auth.js";
 import gamehandle from "./routes/gameHandler.js";
-
 import http from "http";
 import { Server } from "socket.io";
-
 import cors from "cors";
 import supabase from "./database/supabaseConfig.js";
 
@@ -14,131 +12,188 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 const server = http.createServer(app);
 
 export const io = new Server(server, {
+  path: "/socket.io", // explicit path avoids CF routing ambiguity
+  transports: ["polling", "websocket"],
   cors: {
-    origin: "*",
+    origin: process.env.CLIENT_ORIGIN || "*",
     methods: ["GET", "POST"],
     credentials: true,
   },
+  pingInterval: 25000,
+  pingTimeout: 60000,
 });
 
-// Express configuration
-app.use(cors({ origin: "*" }));
+app.use(cors({ origin: process.env.CLIENT_ORIGIN || "*" }));
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
 app.set("view engine", "ejs");
 
 app.use("/lobbies", room);
 app.use("/auth", auth);
 app.use("/game", gamehandle);
 
-//socket configurations
 const updatePot = async (data) => {
+  const { name: lobbyName, winner, pot } = data;
+
+  if (!pot || pot === 0) return;
+
   const { data: lobby, error } = await supabase
     .from("lobbies")
     .select("players")
-    .eq("name", data.name)
+    .eq("name", lobbyName)
     .single();
 
   if (error) {
-    console.error("Error fetching lobby:", error.message);
+    console.error("updatePot – fetch error:", error.message);
     return;
   }
 
+  let winnerFound = false;
   const updatedPlayers = lobby.players.map((player) => {
-    if (player.id === data.winner) {
-      return {
-        ...player,
-        buy_in_amount: player.buy_in_amount + data.pot,
-      };
+    if (player.id === winner) {
+      winnerFound = true;
+      return { ...player, buy_in_amount: (player.buy_in_amount ?? 0) + pot };
     }
     return player;
   });
 
+  if (!winnerFound) {
+    console.error("updatePot – winner id not found in players:", winner);
+    return;
+  }
+
   const { error: updateError } = await supabase
     .from("lobbies")
     .update({ players: updatedPlayers })
-    .eq("name", data.name);
+    .eq("name", lobbyName);
 
   if (updateError) {
-    console.error("Error updating pot:", updateError.message);
-  } else {
+    console.error("updatePot – update error:", updateError.message);
+    return;
   }
 
-  if (data.pot !== 0) {
-    const { updated, err } = await supabase
-      .from("lobby-data")
-      .update({ pot: 0 })
-      .eq("name", data.name);
-  }
-};
-
-const changeTurn = async (data) => {
-  let changePlayer;
-  data.currentTurn >= data.numPlayer
-    ? (changePlayer = 1)
-    : (changePlayer = data.currentTurn + 1);
-
-  const { data: change, error } = await supabase
+  const { error: potError } = await supabase
     .from("lobby-data")
-    .update({ currentTurn: changePlayer })
-    .eq("name", data.lobbyName);
+    .update({ pot: 0 })
+    .eq("name", lobbyName);
+
+  if (potError) console.error("updatePot – zero pot error:", potError.message);
 };
 
-const updateCall = async (data) => {
-  if (!data) return;
+const changeTurn = async ({
+  lobbyName,
+  currentTurn,
+  numPlayer,
+  foldedIds = [],
+}) => {
+  let next = currentTurn >= numPlayer ? 1 : currentTurn + 1;
+
+  for (let i = 0; i < numPlayer; i++) {
+    if (!foldedIds.includes(next)) break;
+    next = next >= numPlayer ? 1 : next + 1;
+  }
 
   const { error } = await supabase
     .from("lobby-data")
-    .update({ call: 0 })
-    .eq("name", data.lobbyName);
+    .update({ currentTurn: next })
+    .eq("name", lobbyName);
 
-  if (error) {
-    console.error("Error updating call:", error);
-  } else {
-    console.log("Call updated to 0 successfully");
-  }
+  if (error) console.error("changeTurn error:", error.message);
+  return next;
 };
 
-const updateFold = async (data) => {
-  const { data: fold, error } = await supabase
+const updateCall = async (lobbyName) => {
+  const { error } = await supabase
     .from("lobby-data")
-    .update({ folduser: [data.id] })
-    .eq("name", data.lobbyName)
-    .select("*");
+    .update({ call: 0 })
+    .eq("name", lobbyName);
+
+  if (error) console.error("updateCall error:", error.message);
+};
+
+const updateFold = async ({ lobbyName, id }) => {
+  const { data, error } = await supabase
+    .from("lobby-data")
+    .select("folduser")
+    .eq("name", lobbyName)
+    .single();
 
   if (error) {
-    console.error("Error updating fold:", error);
-  } else {
-    console.log("Updated fold:", fold);
+    console.error("updateFold – fetch error:", error.message);
+    return;
   }
+
+  const current = Array.isArray(data.folduser) ? data.folduser : [];
+  if (current.includes(id)) return;
+
+  const { error: updateError } = await supabase
+    .from("lobby-data")
+    .update({ folduser: [...current, id] })
+    .eq("name", lobbyName);
+
+  if (updateError)
+    console.error("updateFold – update error:", updateError.message);
 };
 
 io.on("connection", (socket) => {
-  socket.on("gamedetails", (msg) => {
-    socket.broadcast.emit("gamedetails", msg);
-    socket.broadcast.emit("msg", msg);
-    changeTurn(msg);
+  socket.on("join-lobby", ({ lobbyName }) => {
+    if (!lobbyName) return;
+    socket.join(lobbyName);
+    socket.emit("joined-lobby", { lobbyName });
   });
+
+  socket.on("leave-lobby", ({ lobbyName }) => {
+    socket.leave(lobbyName);
+  });
+
+  socket.on("gamedetails", async (msg) => {
+    const { lobbyName, currentTurn, numPlayer, foldedIds } = msg;
+
+    socket.to(lobbyName).emit("gamedetails", msg);
+
+    const next = await changeTurn({
+      lobbyName,
+      currentTurn,
+      numPlayer,
+      foldedIds,
+    });
+
+    io.to(lobbyName).emit("turn-change", { currentTurn: next });
+  });
+
+  socket.on("call", async (data) => {
+    const { lobbyName } = data;
+    socket.to(lobbyName).emit("call", data);
+    await updateCall(lobbyName);
+  });
+
+  socket.on("fold", async (data) => {
+    const { lobbyName } = data;
+    socket.to(lobbyName).emit("fold", data);
+    await updateFold(data);
+  });
+
+  socket.on("winner", async (data) => {
+    const { lobbyName } = data;
+    await updatePot(data);
+    io.to(lobbyName).emit("winner", data);
+  });
+
   socket.on("msg", (msg) => {
-    socket.broadcast.emit("msg", msg);
+    const { lobbyName } = msg;
+    if (lobbyName) {
+      socket.to(lobbyName).emit("msg", msg);
+    } else {
+      socket.broadcast.emit("msg", msg);
+    }
   });
-  socket.on("winner", (data) => {
-    updatePot(data);
-  });
-  socket.on("call", (data) => {
-    updateCall(data);
-    console.log("hello", data);
-  });
-  socket.on("fold", (data) => {
-    updateFold(data);
-  });
+
   socket.on("disconnect", () => {});
 });
 
-server.listen(PORT, () => console.log("Server is alive on port.", PORT));
+// ─── Start ────────────────────────────────────────────────────────────────────
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

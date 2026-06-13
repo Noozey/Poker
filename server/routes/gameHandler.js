@@ -1,16 +1,16 @@
 import express from "express";
 import { io } from "../index.js";
 import supabase from "../database/supabaseConfig.js";
+
 const router = express.Router();
 
-const suits = [
+const SUITS = [
   { name: "Hearts", symbol: "♥️" },
   { name: "Diamonds", symbol: "♦️" },
   { name: "Clubs", symbol: "♣️" },
   { name: "Spades", symbol: "♠️" },
 ];
-
-const ranks = [
+const RANKS = [
   "2",
   "3",
   "4",
@@ -26,156 +26,162 @@ const ranks = [
   "A",
 ];
 
+function buildDeck() {
+  const deck = [];
+  for (const suit of SUITS) for (const rank of RANKS) deck.push({ rank, suit });
+  return deck;
+}
+
+function drawCard(deck) {
+  const index = Math.floor(Math.random() * deck.length);
+  return deck.splice(index, 1)[0];
+}
+
 router.post("/", async (req, res) => {
   const { lobbyName, playerNum } = req.body;
+  const numPlayers = Math.max(2, Number(playerNum) || 2);
 
-  const numPlayers = Number(playerNum) || 2;
-  const players = Array(numPlayers).fill(false);
-  const fullDeck = [];
-  const drawedDeck = [];
-
-  let check = {
-    players,
+  const check = {
+    players: Array(numPlayers).fill(false),
     community: Array(6).fill(false),
   };
 
-  for (const suit of suits) {
-    for (const rank of ranks) {
-      fullDeck.push({ rank, suit });
-    }
+  const deck = buildDeck();
+  const cardsToDraw = 2 * numPlayers + 5; // always exact
+  const drawedDeck = [];
+  for (let i = 0; i < cardsToDraw; i++) {
+    drawedDeck.push(drawCard(deck));
   }
 
-  function drawCard(deck) {
-    const index = Math.floor(Math.random() * deck.length);
-    return deck.splice(index, 1)[0];
-  }
-
-  // Fix here: use players.length instead of players array
-  const numberOfCardsToDraw = 9 + (players.length - 2) * 2;
-
-  for (let i = 0; i < numberOfCardsToDraw; i++) {
-    drawedDeck.push(drawCard(fullDeck));
-  }
-
-  const { data, error } = await supabase
+  const { data: lobbyRows, error: fetchError } = await supabase
     .from("lobby-data")
     .select("dealer")
-    .eq("name", lobbyName);
+    .eq("name", lobbyName)
+    .maybeSingle();
 
-  if (error) {
-    console.error("Error fetching dealer:", error);
-    return; // or handle error accordingly
+  if (fetchError) {
+    console.error("game POST – fetch dealer:", fetchError.message);
+    return res.status(500).json({ error: fetchError.message });
   }
 
-  const dealer = data?.[0]?.dealer ?? 0;
+  const prevDealer = lobbyRows?.dealer ?? 0;
+  const dealer = prevDealer >= numPlayers ? 1 : prevDealer + 1;
+  const currentTurn = dealer >= numPlayers ? 1 : dealer + 1;
 
-  const changeDealer = dealer >= playerNum ? 1 : dealer + 1;
-  const currentTurn = changeDealer >= playerNum ? 1 : changeDealer + 1;
-
-  const { data: upsertData, error: upsertError } = await supabase
+  const { data: upserted, error: upsertError } = await supabase
     .from("lobby-data")
     .upsert(
       [
         {
           name: lobbyName,
           draweddeck: drawedDeck,
-          check: check,
-          dealer: changeDealer,
+          check,
+          dealer,
           show: false,
           currentTurn,
           folduser: [],
+          pot: 0,
+          call: 0,
         },
       ],
       { onConflict: "name" },
     )
-    .select();
+    .select()
+    .single();
 
   if (upsertError) {
-    console.error("Error updating lobby-data:", upsertError);
+    console.error("game POST – upsert:", upsertError.message);
+    return res.status(500).json({ error: upsertError.message });
   }
 
-  if (error) {
-    res.status(500).json({ error: error.message });
-  } else {
-    res.json(data);
-  }
+  io.to(lobbyName).emit("game-data", upserted);
+
+  return res.json(upserted);
 });
 
 router.post("/check/:player", async (req, res) => {
-  const { player } = req.params;
+  const playerIndex = parseInt(req.params.player, 10) - 1;
   const { lobbyName, state } = req.body;
 
-  let index = parseInt(player) - 1;
+  if (isNaN(playerIndex) || playerIndex < 0) {
+    return res.status(400).json({ error: "Invalid player index" });
+  }
 
   const { data, error } = await supabase
     .from("lobby-data")
-    .select("name, check")
+    .select("check, folduser")
     .eq("name", lobbyName)
     .single();
 
-  if (error) {
-    return res.status(500).json({ error: error.message });
-  }
+  if (error) return res.status(500).json({ error: error.message });
 
-  let check = data.check;
+  const check = data.check;
+  const folduser = Array.isArray(data.folduser) ? data.folduser : [];
+  const numPlayers = check.players.length;
 
-  check.players[index] = true;
   if (state === "raised") {
-    check.players = check.players.map(() => false);
-    check.players[index] = true;
+    check.players = Array(numPlayers).fill(false);
   }
+  check.players[playerIndex] = true;
 
-  if (check.players.every(Boolean)) {
-    if (!check.community[0] && !check.community[1] && !check.community[2]) {
+  const activePlayers = check.players.filter(
+    (_, i) => !folduser.includes(i + 1),
+  );
+  const allActed = activePlayers.length > 0 && activePlayers.every(Boolean);
+
+  if (allActed) {
+    check.players = Array(numPlayers).fill(false);
+
+    if (!check.community[0]) {
       check.community[0] = true;
       check.community[1] = true;
       check.community[2] = true;
-
-      check.players = Array(check.players.length).fill(false);
     } else if (!check.community[3]) {
-      check.community[3] = true;
-      check.players = Array(check.players.length).fill(false);
+      check.community[3] = true; // Turn
     } else if (!check.community[4]) {
-      check.community[4] = true;
-      check.players = Array(check.players.length).fill(false);
+      check.community[4] = true; // River
     } else if (!check.community[5]) {
-      check.community[5] = true;
-      check.players = Array(check.players.length).fill(false);
+      check.community[5] = true; // Showdown flag
     }
   }
 
   const { data: updated, error: updateError } = await supabase
     .from("lobby-data")
     .update({ check })
-    .eq("name", lobbyName);
+    .eq("name", lobbyName)
+    .select()
+    .single();
 
-  if (updateError) {
-    return res.status(500).json({ error: updateError.message });
-  }
+  if (updateError) return res.status(500).json({ error: updateError.message });
 
-  res.json(updated);
+  io.to(lobbyName).emit("check-update", updated);
+
+  return res.json(updated);
 });
 
 router.put("/raise", async (req, res) => {
   const { lobbyName, id, buy_in_amount, pot, raise } = req.body;
 
-  const { data, error } = await supabase
-    .from("lobbies")
-    .select("id, players")
-    .eq("name", lobbyName)
-    .single();
+  // Update player balance and pot/call in parallel
+  const [lobbyResult, potResult] = await Promise.all([
+    supabase
+      .from("lobbies")
+      .select("id, players")
+      .eq("name", lobbyName)
+      .single(),
+    supabase
+      .from("lobby-data")
+      .update({ pot, call: raise })
+      .eq("name", lobbyName)
+      .select("pot, call")
+      .single(),
+  ]);
 
-  if (error) {
-    console.error(error);
+  if (lobbyResult.error) {
     return res.status(500).json({ error: "Unable to fetch lobby" });
   }
 
-  if (!data) {
-    return res.status(404).json({ error: "Lobby not found" });
-  }
-
-  const lobbyId = data.id;
-  const players = data.players;
+  const { id: lobbyId, players } = lobbyResult.data;
 
   const updatedPlayers = players.map((player) =>
     player.id === id ? { ...player, buy_in_amount } : player,
@@ -187,46 +193,27 @@ router.put("/raise", async (req, res) => {
     .eq("id", lobbyId);
 
   if (updateError) {
-    console.error(updateError);
     return res.status(500).json({ error: "Unable to update player" });
   }
 
-  const { data: setPot, err } = await supabase
-    .from("lobby-data")
-    .update({ pot, call: raise })
-    .eq("name", lobbyName)
-    .select("*");
+  if (!potResult.error) {
+    io.to(lobbyName).emit("raise-update", potResult.data);
+  }
+
+  return res.json({ success: true });
 });
 
 router.get("/data/:lobbyName", async (req, res) => {
   const { lobbyName } = req.params;
 
-  try {
-    const { data, error } = await supabase
-      .from("lobby-data")
-      .select("*")
-      .eq("name", lobbyName);
+  const { data, error } = await supabase
+    .from("lobby-data")
+    .select("*")
+    .eq("name", lobbyName)
+    .single();
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-
-    return res.json(data);
-  } catch (err) {
-    return res.status(500).json({ error: "Server error" });
-  }
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json(data);
 });
-
-supabase
-  .channel("lobby-data")
-  .on(
-    "postgres_changes",
-    { event: "*", schema: "public", table: "lobby-data" },
-    (payload) => {
-      io.emit("game-data", payload.new);
-      console.log(payload.new);
-    },
-  )
-  .subscribe();
 
 export default router;

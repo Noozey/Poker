@@ -10,9 +10,8 @@ router.post("/user/bulk", async (req, res) => {
   }
 
   try {
-    // Query the 'auth.users' table (note the schema 'auth')
     const { data, error } = await supabase
-      .from("auth.users") // <-- query the auth.users table
+      .from("auth.users")
       .select("*")
       .in("id", userIds);
 
@@ -20,7 +19,7 @@ router.post("/user/bulk", async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
-    res.json(data); // returns an array of user objects from auth
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
