@@ -58,12 +58,16 @@ export async function handleLobbies(
       return Response.json({ error: error.message }, { status: 500 });
     }
 
-    return Response.json({ message: "Lobby created", lobby: data }, { status: 201 });
+    return Response.json(
+      { message: "Lobby created", lobby: data },
+      { status: 201 },
+    );
   }
 
   // PUT /lobbies/join
   if (request.method === "PUT" && url.pathname === "/lobbies/join") {
-    const { lobby_code, password, user_id } = (await request.json()) as JoinLobbyBody;
+    const { lobby_code, password, user_id } =
+      (await request.json()) as JoinLobbyBody;
 
     const { data: lobby, error: fetchError } = await supabase
       .from("lobbies")
@@ -80,15 +84,19 @@ export async function handleLobbies(
     }
 
     const existing: Player[] = lobby.players || [];
-    const alreadyIn = existing.some((p) => p.id === user_id.id);
-
+    const existingPlayer = existing.find((p) => p.id === user_id.id);
     let newPlayers: Player[];
-    if (alreadyIn) {
-      newPlayers = existing.map((p) => (p.id === user_id.id ? user_id : p));
+
+    if (existingPlayer) {
+      newPlayers = existing.map((p) =>
+        p.id === user_id.id
+          ? { ...user_id, buy_in_amount: existingPlayer.buy_in_amount ?? 1000 }
+          : p,
+      );
     } else if (existing.length >= lobby.max_players) {
       return Response.json({ error: "Lobby is full" }, { status: 400 });
     } else {
-      newPlayers = [...existing, user_id];
+      newPlayers = [...existing, { ...user_id, buy_in_amount: 1000 }];
     }
 
     const { data, error: updateError } = await supabase
@@ -102,7 +110,10 @@ export async function handleLobbies(
       return Response.json({ error: updateError.message }, { status: 500 });
     }
 
-    await broadcastToLobby(env, lobby_code, { type: "lobby-data", payload: data });
+    await broadcastToLobby(env, lobby_code, {
+      type: "lobby-data",
+      payload: data,
+    });
 
     return Response.json(
       { message: "Joined lobby", lobby: data, success: true },

@@ -4,28 +4,35 @@ import { toast } from "sonner";
 import { createLobbySocket } from "./lobbySocket.js";
 import { GamePlay } from "./components/gamelogic.jsx";
 import { useLobbyData } from "./context/lobbyData.jsx";
+import { useAuth } from "./context/authProvider.jsx";
 
 export default function GameRoom() {
   const [lobbyData, setLobbyData] = useState(null);
   const [socket, setSocket] = useState(null);
   const { lobbyName } = useLobbyData();
+  const { session } = useAuth();
 
   useEffect(() => {
-    const newSocket = createLobbySocket(`ws://127.0.0.1:8787/ws/${lobbyName}`);
+    if (!session?.user?.id) return;
 
+    const params = new URLSearchParams({
+      playerId: session.user.id,
+      lobbyName,
+    });
+    const newSocket = createLobbySocket(
+      `${import.meta.env.VITE_WEB_SOCKET}${lobbyName}?${params.toString()}`,
+    );
     newSocket.on("lobby-data", (data) => {
       setLobbyData(data);
     });
     newSocket.on("gamedetails", (msg) => {
       toast(`${msg.name} ${msg.state}`);
     });
-
     setSocket(newSocket);
-
     return () => {
       newSocket.disconnect();
     };
-  }, [lobbyName]);
+  }, [lobbyName, session?.user?.id]);
 
   useEffect(() => {
     const fetchLobbyData = async () => {

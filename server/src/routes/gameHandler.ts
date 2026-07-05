@@ -140,19 +140,51 @@ export async function handleGame(
       return Response.json({ error: "Invalid player index" }, { status: 400 });
     }
 
-    const { data, error } = await supabase
-      .from("lobby-data")
-      .select("check, folduser")
-      .eq("name", lobbyName)
-      .single<Pick<LobbyDataRow, "check" | "folduser">>();
+    // Fetch both the check/fold state (lobby-data) and the seat order
+    // (lobbies.players) in parallel — we need the seat order because
+    // folduser stores player UUIDs, but check.players is indexed by
+    // 1-based seat position, so the two have to be cross-referenced.
+    const [checkResult, lobbyResult] = await Promise.all([
+      supabase
+        .from("lobby-data")
+        .select("check, folduser")
+        .eq("name", lobbyName)
+        .single<Pick<LobbyDataRow, "check" | "folduser">>(),
+      supabase
+        .from("lobbies")
+        .select("players")
+        .eq("name", lobbyName)
+        .single<{ players: { id: string }[] }>(),
+    ]);
 
-    if (error) return Response.json({ error: error.message }, { status: 500 });
+    if (checkResult.error) {
+      return Response.json(
+        { error: checkResult.error.message },
+        { status: 500 },
+      );
+    }
+    if (lobbyResult.error) {
+      return Response.json(
+        { error: lobbyResult.error.message },
+        { status: 500 },
+      );
+    }
 
-    const check = data.check;
-    const folduser: number[] = Array.isArray(data.folduser)
-      ? data.folduser
+    const check = checkResult.data.check;
+    const folduser: string[] = Array.isArray(checkResult.data.folduser)
+      ? checkResult.data.folduser
       : [];
     const numPlayers = check.players.length;
+
+    // Map each folded player's UUID to their 1-based seat position.
+    const foldedPositions = new Set(
+      folduser
+        .map(
+          (foldedId) =>
+            lobbyResult.data.players.findIndex((p) => p.id === foldedId) + 1,
+        )
+        .filter((pos) => pos > 0),
+    );
 
     if (state === "raised") {
       check.players = Array(numPlayers).fill(false);
@@ -160,7 +192,7 @@ export async function handleGame(
     check.players[playerIndex] = true;
 
     const activePlayers = check.players.filter(
-      (_, i) => !folduser.includes(i + 1),
+      (_, i) => !foldedPositions.has(i + 1),
     );
     const allActed = activePlayers.length > 0 && activePlayers.every(Boolean);
 
@@ -227,10 +259,12 @@ export async function handleGame(
       player.id === id ? { ...player, buy_in_amount } : player,
     );
 
-    const { error: updateError } = await supabase
+    const { data: updatedLobby, error: updateError } = await supabase
       .from("lobbies")
       .update({ players: updatedPlayers })
-      .eq("id", lobbyId);
+      .eq("id", lobbyId)
+      .select()
+      .single();
 
     if (updateError) {
       return Response.json(
@@ -238,6 +272,15 @@ export async function handleGame(
         { status: 500 },
       );
     }
+
+    // Push the updated balances to every client in the lobby. Without
+    // this, only the acting player's own local state ever reflected
+    // their new buy_in_amount — everyone else's screen stayed stale
+    // until they refreshed.
+    await broadcastToLobby(env, lobbyName, {
+      type: "lobby-data",
+      payload: updatedLobby,
+    });
 
     if (!potResult.error) {
       await broadcastToLobby(env, lobbyName, {

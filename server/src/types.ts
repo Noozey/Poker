@@ -32,7 +32,7 @@ export interface LobbyDataRow {
   dealer: number;
   show: boolean;
   currentTurn: number;
-  folduser: number[];
+  folduser: string[];
   pot: number;
   call: number;
 }
@@ -66,7 +66,7 @@ export interface CallPayload {
 
 export interface FoldPayload {
   lobbyName: string;
-  id: number;
+  id: string;
   [key: string]: unknown;
 }
 
@@ -87,3 +87,15 @@ export type RealtimeMessage =
   | { type: "fold"; payload: FoldPayload }
   | { type: "winner"; payload: WinnerPayload }
   | { type: "msg"; payload: MsgPayload };
+
+export interface LobbyDataRow {
+  name: string;
+  draweddeck: Card[];
+  check: CheckState;
+  dealer: number;
+  show: boolean;
+  currentTurn: number;
+  folduser: string[]; // was number[]
+  pot: number;
+  call: number;
+}

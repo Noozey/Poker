@@ -46,12 +46,20 @@ export class LobbyRoom extends DurableObject<Env> {
       return new Response("Expected WebSocket", { status: 426 });
     }
 
+    const playerId = url.searchParams.get("playerId") ?? "";
+    const lobbyName = url.searchParams.get("lobbyName") ?? "";
+
     const [client, server] = Object.values(new WebSocketPair());
     this.ctx.acceptWebSocket(server);
+    server.serializeAttachment({ playerId, lobbyName });
+
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  async webSocketMessage(ws: WebSocket, data: string | ArrayBuffer): Promise<void> {
+  async webSocketMessage(
+    ws: WebSocket,
+    data: string | ArrayBuffer,
+  ): Promise<void> {
     let msg: { type: string; payload: unknown };
     try {
       msg = JSON.parse(data as string);
@@ -61,13 +69,52 @@ export class LobbyRoom extends DurableObject<Env> {
     await this.handleEvent(ws, msg);
   }
 
-  async webSocketClose(): Promise<void> {
-    // Nothing to clean up manually — ctx.getWebSockets() reflects the
-    // current connection set automatically.
+  async webSocketClose(
+    ws: WebSocket,
+    _code: number,
+    _reason: string,
+    _wasClean: boolean,
+  ): Promise<void> {
+    const attachment = ws.deserializeAttachment() as {
+      playerId?: string;
+      lobbyName?: string;
+    } | null;
+
+    const playerId = attachment?.playerId;
+    const lobbyName = attachment?.lobbyName;
+
+    if (playerId) {
+      this.broadcast({ type: "player-disconnected", payload: { playerId } });
+    }
+
+    // ctx.getWebSockets() already reflects the connection that just closed
+    // being gone, so if this is empty, this was the last player.
+    const remaining = this.ctx.getWebSockets();
+    if (remaining.length === 0 && lobbyName) {
+      await this.deleteRoom(lobbyName);
+    }
   }
 
   async webSocketError(_ws: WebSocket, error: unknown): Promise<void> {
     console.error("LobbyRoom websocket error:", error);
+  }
+
+  async deleteRoom(lobbyName: string): Promise<void> {
+    const supabase = getSupabase(this.env);
+
+    const { error: lobbyError } = await supabase
+      .from("lobbies")
+      .delete()
+      .eq("name", lobbyName);
+    if (lobbyError)
+      console.error("deleteRoom – lobbies delete error:", lobbyError.message);
+
+    const { error: dataError } = await supabase
+      .from("lobby-data")
+      .delete()
+      .eq("name", lobbyName);
+    if (dataError)
+      console.error("deleteRoom – lobby-data delete error:", dataError.message);
   }
 
   async handleEvent(
@@ -140,7 +187,7 @@ export class LobbyRoom extends DurableObject<Env> {
       .from("lobby-data")
       .select("folduser")
       .eq("name", lobbyName)
-      .single<{ folduser: number[] }>();
+      .single<{ folduser: string[] }>();
 
     if (error) {
       console.error("updateFold – fetch error:", error.message);
@@ -159,7 +206,11 @@ export class LobbyRoom extends DurableObject<Env> {
       console.error("updateFold – update error:", updateError.message);
   }
 
-  async updatePot({ name: lobbyName, winner, pot }: WinnerPayload): Promise<void> {
+  async updatePot({
+    name: lobbyName,
+    winner,
+    pot,
+  }: WinnerPayload): Promise<void> {
     if (!pot || pot === 0) return;
 
     const supabase = getSupabase(this.env);
@@ -188,21 +239,30 @@ export class LobbyRoom extends DurableObject<Env> {
       return;
     }
 
-    const { error: updateError } = await supabase
+    // Capture the updated row so we can push it to every client. Without
+    // this, the winner's new balance only ever existed in Supabase — no
+    // one's screen (including the winner's) reflected it until a manual
+    // refetch, since nothing was broadcast.
+    const { data: updatedLobby, error: updateError } = await supabase
       .from("lobbies")
       .update({ players: updatedPlayers })
-      .eq("name", lobbyName);
+      .eq("name", lobbyName)
+      .select()
+      .single();
 
     if (updateError) {
       console.error("updatePot – update error:", updateError.message);
       return;
     }
 
+    this.broadcast({ type: "lobby-data", payload: updatedLobby });
+
     const { error: potError } = await supabase
       .from("lobby-data")
       .update({ pot: 0 })
       .eq("name", lobbyName);
 
-    if (potError) console.error("updatePot – zero pot error:", potError.message);
+    if (potError)
+      console.error("updatePot – zero pot error:", potError.message);
   }
 }

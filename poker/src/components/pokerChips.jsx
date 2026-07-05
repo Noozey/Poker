@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
 function PokerChip({
@@ -49,7 +49,10 @@ function DropZone({ onDrop, droppedChips, isActive, setRaise }) {
     (sum, chip) => sum + parseInt(chip.value),
     0,
   );
-  setRaise(totalValue);
+
+  useEffect(() => {
+    setRaise(totalValue);
+  }, [totalValue, setRaise]);
 
   return (
     <div

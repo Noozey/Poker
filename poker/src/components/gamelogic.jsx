@@ -25,6 +25,7 @@ export function GamePlay({ lobbyData, socket }) {
   const [call, setCall] = useState(0);
   const [playerAfterFold, setPlayerAfterFold] = useState([]);
   const [gameStarted, setGameStarted] = useState(false);
+  const [disconnectedPlayers, setDisconnectedPlayers] = useState([]);
 
   const applyGameState = (data) => {
     setCardData(data.draweddeck ?? []);
@@ -83,6 +84,12 @@ export function GamePlay({ lobbyData, socket }) {
       toast(`Player ${winner} won the pot of ${wonPot}!`);
     };
 
+    const onPlayerDisconnected = ({ playerId }) => {
+      setDisconnectedPlayers((prev) =>
+        prev.includes(playerId) ? prev : [...prev, playerId],
+      );
+    };
+
     socket.on("game-data", onGameData);
     socket.on("check-update", onCheckUpdate);
     socket.on("turn-change", onTurnChange);
@@ -90,6 +97,7 @@ export function GamePlay({ lobbyData, socket }) {
     socket.on("call", onCall);
     socket.on("fold", onFold);
     socket.on("winner", onWinner);
+    socket.on("player-disconnected", onPlayerDisconnected);
 
     return () => {
       socket.off("game-data", onGameData);
@@ -99,6 +107,7 @@ export function GamePlay({ lobbyData, socket }) {
       socket.off("call", onCall);
       socket.off("fold", onFold);
       socket.off("winner", onWinner);
+      socket.off("player-disconnected", onPlayerDisconnected);
     };
   }, [socket]);
 
@@ -208,15 +217,22 @@ export function GamePlay({ lobbyData, socket }) {
 
     const newAmount = myCard.buy_in_amount - call;
 
-    socket.emit("call", { lobbyName });
-    updateCheck("call");
+    try {
+      await api.put("/game/raise", {
+        lobbyName,
+        id: session.user.id,
+        buy_in_amount: newAmount,
+        pot: pot + call,
+        raise: 0, // clears the outstanding call amount once it's matched
+      });
+    } catch (error) {
+      console.error("Call failed:", error);
+      toast("Call failed — please try again.");
+      return;
+    }
 
-    await api.put("game/raise", {
-      lobbyName,
-      id: session.user.id,
-      buy_in_amount: newAmount,
-      pot: pot + call,
-    });
+    socket.emit("call", { lobbyName });
+    await updateCheck("call");
   };
 
   const handleRaise = async () => {
@@ -230,15 +246,21 @@ export function GamePlay({ lobbyData, socket }) {
 
     const newAmount = myCard.buy_in_amount - raise;
 
-    updateCheck("raised");
+    try {
+      await api.put("/game/raise", {
+        lobbyName,
+        id: session.user.id,
+        buy_in_amount: newAmount,
+        pot: pot + raise,
+        raise,
+      });
+    } catch (error) {
+      console.error("Raise failed:", error);
+      toast("Raise failed — please try again.");
+      return;
+    }
 
-    await api.put("game/raise", {
-      lobbyName,
-      id: session.user.id,
-      buy_in_amount: newAmount,
-      pot: pot + raise,
-      raise,
-    });
+    await updateCheck("raised");
   };
 
   const myPlayer = playerCard.find((p) => p.id === session.user.id);
@@ -352,8 +374,15 @@ export function GamePlay({ lobbyData, socket }) {
                       You: {player.buy_in_amount}
                     </div>
                   ) : (
-                    <div>
-                      {player.name}: {player.buy_in_amount}
+                    <div className="flex items-center gap-2">
+                      <span>
+                        {player.name}: {player.buy_in_amount}
+                      </span>
+                      {disconnectedPlayers.includes(player.id) && (
+                        <span className="text-xs text-red-400 font-medium">
+                          (disconnected)
+                        </span>
+                      )}
                     </div>
                   )}
                 </li>
