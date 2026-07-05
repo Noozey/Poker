@@ -1,7 +1,7 @@
 import { api } from "./lib/axios";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { io } from "socket.io-client";
+import { createLobbySocket } from "./lobbySocket.js";
 import { GamePlay } from "./components/gamelogic.jsx";
 import { useLobbyData } from "./context/lobbyData.jsx";
 
@@ -11,18 +11,11 @@ export default function GameRoom() {
   const { lobbyName } = useLobbyData();
 
   useEffect(() => {
-    const newSocket = io("http://localhost:3000/", {
-      transports: ["polling", "websocket"],
-    });
-
-    newSocket.on("connect", () => {
-      newSocket.emit("join-lobby", { lobbyName });
-    });
+    const newSocket = createLobbySocket(`ws://127.0.0.1:8787/ws/${lobbyName}`);
 
     newSocket.on("lobby-data", (data) => {
       setLobbyData(data);
     });
-
     newSocket.on("gamedetails", (msg) => {
       toast(`${msg.name} ${msg.state}`);
     });
@@ -30,7 +23,6 @@ export default function GameRoom() {
     setSocket(newSocket);
 
     return () => {
-      newSocket.emit("leave-lobby", { lobbyName });
       newSocket.disconnect();
     };
   }, [lobbyName]);
@@ -44,9 +36,7 @@ export default function GameRoom() {
         console.error("Error fetching lobby data:", error);
       }
     };
-
     fetchLobbyData();
-
     toast(
       <div className="flex gap-4">
         {/* Fixed: JSX requires camelCase SVG props */}

@@ -1,0 +1,17 @@
+{
+  "name": "poker-server",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      { "name": "LOBBY_ROOM", "class_name": "LobbyRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["LobbyRoom"] }
+  ],
+  "vars": {
+    "SUPABASE_URL": "https://YOUR-PROJECT.supabase.co"
+  }
+}
