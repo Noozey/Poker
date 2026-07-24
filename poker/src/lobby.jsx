@@ -12,14 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 import { api } from "./lib/axios";
 import GameRoom from "./gameroom";
 import { toast } from "sonner";
@@ -71,7 +63,7 @@ export default function Lobby() {
 const CreateLobby = ({ setInRoom }) => {
   const { session } = useAuth();
   const [lobbyCode, setLobbyCode] = useState("");
-  const [gameType, setGameType] = useState("");
+  const [gameType] = useState("Test");
   const [maxPlayers, setMaxPlayers] = useState(2);
   const [buyInAmount, setBuyInAmount] = useState(100);
   const [password, setPassword] = useState("");
@@ -151,21 +143,6 @@ const CreateLobby = ({ setInRoom }) => {
               placeholder="Enter lobby name"
             />
           </div>
-
-          <div className="grid gap-2">
-            <Label>Game Type</Label>
-            <Select onValueChange={(value) => setGameType(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select game type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="texas">Texas Hold'em</SelectItem>
-                <SelectItem value="omaha">Omaha</SelectItem>
-                <SelectItem value="7stud">7-Card Stud</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label>Max Players</Label>
@@ -194,21 +171,6 @@ const CreateLobby = ({ setInRoom }) => {
               type="text"
               placeholder="Private lobby password"
             />
-          </div>
-        </div>
-        {/* Advanced Options */}
-        <div className="border-t pt-4 mt-4 grid gap-4">
-          <div className="flex items-center justify-between">
-            <Label>Show Last Hand</Label>
-            <Switch />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>Allow Spectators</Label>
-            <Switch />
-          </div>
-          <div className="flex items-center justify-between">
-            <Label>Enable Chat</Label>
-            <Switch />
           </div>
         </div>
 

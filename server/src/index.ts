@@ -47,7 +47,8 @@ export default {
     // custom headers the same way, and browsers don't preflight it.)
     if (url.pathname.startsWith("/ws/")) {
       const lobbyName = url.pathname.slice("/ws/".length);
-      if (!lobbyName) return new Response("Missing lobby name", { status: 400 });
+      if (!lobbyName)
+        return new Response("Missing lobby name", { status: 400 });
       const id = env.LOBBY_ROOM.idFromName(lobbyName);
       const stub = env.LOBBY_ROOM.get(id);
       return stub.fetch(request);
