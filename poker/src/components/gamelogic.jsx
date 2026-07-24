@@ -90,6 +90,15 @@ export function GamePlay({ lobbyData, socket }) {
       );
     };
 
+    const onPlayerConnected = ({ playerId }) => {
+      setDisconnectedPlayers((prev) => {
+        if (prev.includes(playerId)) {
+          toast(`Player reconnected`);
+        }
+        return prev.filter((id) => id !== playerId);
+      });
+    };
+
     socket.on("game-data", onGameData);
     socket.on("check-update", onCheckUpdate);
     socket.on("turn-change", onTurnChange);
@@ -98,6 +107,7 @@ export function GamePlay({ lobbyData, socket }) {
     socket.on("fold", onFold);
     socket.on("winner", onWinner);
     socket.on("player-disconnected", onPlayerDisconnected);
+    socket.on("player-connected", onPlayerConnected);
 
     return () => {
       socket.off("game-data", onGameData);
@@ -108,6 +118,7 @@ export function GamePlay({ lobbyData, socket }) {
       socket.off("fold", onFold);
       socket.off("winner", onWinner);
       socket.off("player-disconnected", onPlayerDisconnected);
+      socket.off("player-connected", onPlayerConnected);
     };
   }, [socket]);
 

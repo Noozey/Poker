@@ -53,6 +53,13 @@ export class LobbyRoom extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server);
     server.serializeAttachment({ playerId, lobbyName });
 
+    if (playerId) {
+      this.broadcast(
+        { type: "player-connected", payload: { playerId } },
+        server,
+      );
+    }
+
     return new Response(null, { status: 101, webSocket: client });
   }
 
